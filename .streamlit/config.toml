@@ -1,0 +1,14 @@
+[server]
+headless = false
+enableCORS = false
+enableXsrfProtection = false
+maxUploadSize = 500
+
+[browser]
+gatherUsageStats = false
+
+[logger]
+hideWelcomeMessage = true
+
+[client]
+toolbarMode = "minimal"

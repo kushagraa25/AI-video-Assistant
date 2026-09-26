@@ -1,0 +1,27 @@
+# Secrets & environment
+.env
+
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Local data & temporary audio downloads
+data/downloads/*
+!data/downloads/.gitkeep
+data/vector_db/*
+!data/vector_db/.gitkeep
+
+# Legacy temporary folders
+downloades/
+downloads/
+vector_db/
+
+# Streamlit local session data
+.streamlit/secrets.toml
