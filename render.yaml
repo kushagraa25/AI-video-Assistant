@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: ai-meeting-assistant
+    runtime: docker
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 8501
+      - key: WHISPER_MODEL
+        value: tiny
+      - key: MISTRAL_MODEL
+        value: open-mistral-nemo
+      - key: SARVAM_STT_MODEL
+        value: saaras:v2.5
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: SARVAM_API_KEY
+        sync: false
