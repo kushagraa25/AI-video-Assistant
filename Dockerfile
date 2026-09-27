@@ -7,10 +7,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=8501 \
     WHISPER_MODEL=tiny
 
-# Install system dependencies: ffmpeg (required for audio conversion) and git
+# Install system dependencies: ffmpeg (required for audio conversion), git, and nodejs (for yt-dlp JS runtime)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     git \
+    nodejs \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 

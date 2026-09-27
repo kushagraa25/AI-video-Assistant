@@ -17,3 +17,5 @@ services:
         sync: false
       - key: SARVAM_API_KEY
         sync: false
+      - key: YOUTUBE_COOKIES
+        sync: false
