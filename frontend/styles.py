@@ -1,34 +1,35 @@
 """
 Frontend custom styles and UI layout components for Streamlit.
+Optimized for high-contrast, crystal-clear readability with black text.
 """
 
 CUSTOM_CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,600;0,700;1,400&display=swap');
 
 :root {
-    --bg: #faf8f5;
+    --bg: #fbf9f6;
     --surface: #ffffff;
-    --surface-2: #f4f1ec;
-    --border: #e5dfd6;
-    --border-strong: #c9bfb0;
-    --accent: #c17f52;
-    --accent-dark: #a0652e;
-    --accent-light: #f5e8dc;
-    --accent-2: #4a7c6f;
-    --accent-2-light: #d4eae5;
-    --text: #2d2520;
-    --text-muted: #8a7d72;
-    --text-light: #b5a99e;
-    --success: #4a7c6f;
-    --shadow-sm: 0 1px 3px rgba(45,37,32,0.07), 0 1px 2px rgba(45,37,32,0.04);
-    --shadow-md: 0 4px 16px rgba(45,37,32,0.09), 0 2px 6px rgba(45,37,32,0.05);
+    --surface-2: #f2eee8;
+    --border: #d0c8be;
+    --border-strong: #8a7c6f;
+    --accent: #b85b24;
+    --accent-dark: #8e4215;
+    --accent-light: #faece3;
+    --accent-2: #2d6b5e;
+    --accent-2-light: #d6ebe6;
+    --text: #000000;
+    --text-muted: #111111;
+    --text-light: #222222;
+    --success: #1f6655;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08);
 }
 
-html, body, [class*="css"] {
+/* Global Font & High-Contrast Pure Black Text */
+html, body, [class*="css"], .stMarkdown, .stText, p, span, div, label, li, h1, h2, h3, h4, h5, h6 {
     font-family: 'Inter', sans-serif !important;
-    background-color: var(--bg) !important;
-    color: var(--text) !important;
+    color: #000000 !important;
 }
 
 .stApp {
@@ -41,8 +42,8 @@ html, body, [class*="css"] {
     top: 0; left: 0;
     width: 100%; height: 100%;
     background-image:
-        radial-gradient(ellipse at 10% 10%, rgba(193,127,82,0.06) 0%, transparent 55%),
-        radial-gradient(ellipse at 90% 90%, rgba(74,124,111,0.05) 0%, transparent 55%);
+        radial-gradient(ellipse at 10% 10%, rgba(184,91,36,0.05) 0%, transparent 55%),
+        radial-gradient(ellipse at 90% 90%, rgba(45,107,94,0.05) 0%, transparent 55%);
     pointer-events: none;
     z-index: 0;
 }
@@ -71,7 +72,7 @@ footer                         { display: none !important; }
     position: sticky;
     top: 1rem;
     background: var(--surface);
-    border: 1px solid var(--border);
+    border: 1.5px solid var(--border);
     border-radius: 20px;
     padding: 1.75rem 1.5rem;
     box-shadow: var(--shadow-md);
@@ -80,70 +81,94 @@ footer                         { display: none !important; }
 
 .panel-logo {
     font-family: 'Lora', serif;
-    font-size: 1.4rem;
-    font-weight: 600;
-    color: var(--text);
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: #000000 !important;
     line-height: 1.3;
     margin-bottom: 0.2rem;
 }
 
-.panel-logo .accent { color: var(--accent); }
+.panel-logo .accent { color: var(--accent) !important; }
 
 .panel-sub {
-    font-size: 0.78rem;
-    color: var(--text-light);
+    font-size: 0.82rem;
+    font-weight: 600 !important;
+    color: #111111 !important;
     margin-bottom: 1.25rem;
 }
 
 .panel-label {
-    font-size: 0.68rem;
-    font-weight: 700;
+    font-size: 0.72rem;
+    font-weight: 800 !important;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--text-light);
+    color: #000000 !important;
     margin-bottom: 0.5rem;
     display: block;
 }
 
+/* High Contrast Input Fields */
 .stTextInput > div > div > input,
 .stSelectbox > div > div {
-    background: var(--surface-2) !important;
-    border: 1.5px solid var(--border) !important;
+    background: #ffffff !important;
+    border: 1.5px solid var(--border-strong) !important;
     border-radius: 10px !important;
-    color: var(--text) !important;
+    color: #000000 !important;
     font-family: 'Inter', sans-serif !important;
-    font-size: 0.875rem !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
     transition: border-color 0.2s, box-shadow 0.2s !important;
 }
 
 .stTextInput > div > div > input:focus {
     border-color: var(--accent) !important;
-    box-shadow: 0 0 0 3px rgba(193,127,82,0.15) !important;
+    box-shadow: 0 0 0 3px rgba(184,91,36,0.18) !important;
+}
+
+/* Radio & Widget Labels in Black */
+label,
+.stRadio label,
+.stSelectbox label,
+.stTextInput label,
+.stFileUploader label,
+[data-testid="stWidgetLabel"] p,
+.stRadio div[role="radiogroup"] label div p {
+    color: #000000 !important;
+    font-weight: 700 !important;
+    font-size: 0.9rem !important;
+}
+
+/* Captions and subtitles in high-contrast black/dark */
+.stCaption, [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p {
+    color: #111111 !important;
+    font-weight: 600 !important;
+    font-size: 0.82rem !important;
 }
 
 .stButton > button {
     background: var(--accent) !important;
-    color: #fff !important;
+    color: #ffffff !important;
     border: none !important;
     border-radius: 10px !important;
     font-family: 'Inter', sans-serif !important;
-    font-weight: 600 !important;
-    font-size: 0.875rem !important;
-    padding: 0.65rem 1.5rem !important;
+    font-weight: 700 !important;
+    font-size: 0.92rem !important;
+    padding: 0.7rem 1.5rem !important;
     transition: all 0.2s ease !important;
-    box-shadow: 0 2px 10px rgba(193,127,82,0.32) !important;
+    box-shadow: 0 2px 10px rgba(184,91,36,0.35) !important;
     width: 100% !important;
 }
 
 .stButton > button:hover {
     background: var(--accent-dark) !important;
+    color: #ffffff !important;
     transform: translateY(-1px) !important;
-    box-shadow: 0 6px 20px rgba(193,127,82,0.42) !important;
+    box-shadow: 0 6px 20px rgba(184,91,36,0.45) !important;
 }
 
 .card {
     background: var(--surface);
-    border: 1px solid var(--border);
+    border: 1.5px solid var(--border);
     border-radius: 18px;
     padding: 1.4rem 1.6rem;
     margin-bottom: 1rem;
@@ -157,36 +182,41 @@ footer                         { display: none !important; }
 }
 
 .card-title {
-    font-size: 0.67rem;
-    font-weight: 700;
+    font-size: 0.72rem;
+    font-weight: 800 !important;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--text-light);
+    color: #000000 !important;
     margin-bottom: 0.8rem;
     display: flex;
     align-items: center;
     gap: 0.4rem;
 }
 
-.card-content {
-    font-size: 0.9rem;
+.card-content,
+.card-content p,
+.card-content span,
+.card-content div,
+.card-content li {
+    font-size: 0.92rem;
     line-height: 1.8;
-    color: var(--text);
+    color: #000000 !important;
+    font-weight: 500 !important;
 }
 
 .badge {
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-    padding: 0.22rem 0.75rem;
+    padding: 0.25rem 0.8rem;
     border-radius: 100px;
-    font-size: 0.7rem;
-    font-weight: 600;
+    font-size: 0.74rem;
+    font-weight: 700 !important;
 }
 
-.badge-warm    { background: var(--accent-light);  color: var(--accent-dark); border: 1px solid rgba(193,127,82,0.35); }
-.badge-green   { background: var(--accent-2-light); color: var(--accent-2);   border: 1px solid rgba(74,124,111,0.28); }
-.badge-neutral { background: var(--surface-2);      color: var(--text-muted); border: 1px solid var(--border); }
+.badge-warm    { background: var(--accent-light);  color: var(--accent-dark) !important; border: 1.5px solid rgba(184,91,36,0.4); }
+.badge-green   { background: var(--accent-2-light); color: var(--accent-2) !important;   border: 1.5px solid rgba(45,107,94,0.35); }
+.badge-neutral { background: var(--surface-2);      color: #000000 !important;            border: 1.5px solid var(--border); }
 
 .status-bar {
     display: flex;
@@ -196,14 +226,19 @@ footer                         { display: none !important; }
     background: var(--surface-2);
     border-radius: 9px;
     margin: 0.28rem 0;
-    border: 1px solid var(--border);
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: var(--text);
+    border: 1.5px solid var(--border);
+    font-size: 0.82rem;
+    font-weight: 600 !important;
+    color: #000000 !important;
 }
 
-.status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.dot-active  { background: var(--accent); box-shadow: 0 0 0 3px rgba(193,127,82,0.22); animation: pulse 1.5s infinite; }
+.status-bar span {
+    color: #000000 !important;
+    font-weight: 600 !important;
+}
+
+.status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot-active  { background: var(--accent); box-shadow: 0 0 0 3px rgba(184,91,36,0.3); animation: pulse 1.5s infinite; }
 .dot-done    { background: var(--success); }
 .dot-pending { background: var(--border-strong); }
 
@@ -215,17 +250,23 @@ footer                         { display: none !important; }
 .hero-title {
     font-family: 'Lora', serif;
     font-size: clamp(1.6rem, 3vw, 2.4rem);
-    font-weight: 600;
+    font-weight: 700 !important;
     line-height: 1.25;
-    color: var(--text);
+    color: #000000 !important;
     margin: 0;
 }
-.hero-title .accent { color: var(--accent); }
-.hero-sub { font-size: 0.88rem; color: var(--text-muted); margin-top: 0.35rem; }
+.hero-title .accent { color: var(--accent) !important; }
+
+.hero-sub {
+    font-size: 0.92rem;
+    font-weight: 600 !important;
+    color: #111111 !important;
+    margin-top: 0.35rem;
+}
 
 .chat-container {
     background: var(--surface-2);
-    border: 1px solid var(--border);
+    border: 1.5px solid var(--border);
     border-radius: 16px;
     padding: 1.2rem 1.4rem;
     max-height: 420px;
@@ -236,50 +277,76 @@ footer                         { display: none !important; }
 .chat-msg { margin-bottom: 1.1rem; display: flex; flex-direction: column; gap: 0.22rem; }
 
 .chat-label {
-    font-size: 0.66rem; font-weight: 700;
-    letter-spacing: 0.1em; text-transform: uppercase;
+    font-size: 0.68rem;
+    font-weight: 800 !important;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
     padding: 0 0.2rem;
 }
 
 .chat-bubble {
     display: inline-block;
-    padding: 0.72rem 1rem;
+    padding: 0.75rem 1.1rem;
     border-radius: 14px;
-    font-size: 0.875rem;
+    font-size: 0.9rem;
     line-height: 1.65;
     max-width: 86%;
 }
 
-.user-label  { color: var(--accent); }
-.bot-label   { color: var(--accent-2); }
+.user-label  { color: var(--accent) !important; }
+.bot-label   { color: var(--accent-2) !important; }
 
 .user-bubble {
-    background: var(--accent); color: #fff;
+    background: var(--accent);
+    color: #ffffff !important;
     border-bottom-right-radius: 4px;
     align-self: flex-end;
-    box-shadow: 0 2px 10px rgba(193,127,82,0.28);
+    box-shadow: 0 2px 10px rgba(184,91,36,0.3);
+    font-weight: 500;
 }
 
 .bot-bubble {
-    background: var(--surface); color: var(--text);
-    border: 1px solid var(--border);
+    background: var(--surface);
+    color: #000000 !important;
+    border: 1.5px solid var(--border);
     border-bottom-left-radius: 4px;
     align-self: flex-start;
     box-shadow: var(--shadow-sm);
+    font-weight: 500;
 }
 
 .transcript-box {
-    background: var(--surface-2);
-    border: 1px solid var(--border);
+    background: #ffffff;
+    border: 1.5px solid var(--border);
     border-radius: 10px;
     padding: 1.1rem;
-    font-size: 0.84rem;
+    font-size: 0.88rem;
     line-height: 1.9;
     max-height: 280px;
     overflow-y: auto;
-    color: var(--text-muted);
+    color: #000000 !important;
+    font-weight: 500 !important;
     white-space: pre-wrap;
     word-break: break-word;
+}
+
+/* Expanders */
+.streamlit-expanderHeader,
+[data-testid="stExpander"] summary,
+[data-testid="stExpander"] summary p,
+[data-testid="stExpander"] summary span {
+    color: #000000 !important;
+    font-weight: 700 !important;
+}
+
+/* Markdown Containers All Black */
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] span,
+[data-testid="stMarkdownContainer"] div,
+[data-testid="stMarkdownContainer"] li,
+[data-testid="stMarkdownContainer"] strong,
+[data-testid="stMarkdownContainer"] em {
+    color: #000000 !important;
 }
 </style>
 """

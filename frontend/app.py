@@ -18,13 +18,7 @@ if PROJECT_ROOT not in sys.path:
 from frontend.styles import CUSTOM_CSS
 from backend.pipeline import VideoAssistantPipeline
 from backend.rag_engine import ask_question
-from backend.audio_processor import (
-    list_downloaded_videos,
-    download_youtube_video,
-    DOWNLOADED_VIDEOS_DIR,
-    get_cookie_file,
-    save_cookie_content,
-)
+from backend.audio_processor import get_cookie_file, save_cookie_content
 
 # ─── Page Configuration ─────────────────────────────────────────────────────────
 st.set_page_config(
@@ -81,108 +75,73 @@ with left_col:
         st.markdown('<span class="panel-label">📎 Video / Audio Source</span>', unsafe_allow_html=True)
         source_mode = st.radio(
             "Source Mode",
-            ["📁 Server Videos", "🔗 YouTube URL", "📤 Upload File"],
+            ["🔗 YouTube URL", "📤 Upload File"],
             horizontal=True,
             label_visibility="collapsed",
         )
 
         source = ""
-        if source_mode == "📁 Server Videos":
-            downloaded_files = list_downloaded_videos(DOWNLOADED_VIDEOS_DIR)
-            if downloaded_files:
-                video_names = [f"{item['name']} ({item['size_mb']} MB)" for item in downloaded_files]
-                selected_idx = st.selectbox(
-                    "Select Video from Server Folder",
-                    options=range(len(downloaded_files)),
-                    format_func=lambda i: video_names[i],
-                    label_visibility="collapsed",
-                )
-                chosen = downloaded_files[selected_idx]
-                source = chosen["path"]
-                st.caption(f"📁 **Selected:** `{chosen['name']}` ({chosen['size_mb']} MB)")
-                with st.expander("▶️ Preview Media", expanded=False):
-                    if chosen["name"].lower().endswith((".mp4", ".webm", ".mov", ".mkv", ".m4v")):
-                        st.video(chosen["path"])
-                    else:
-                        st.audio(chosen["path"])
-            else:
-                st.warning("⚠️ No videos in `downloaded_videos/` yet.")
-                st.caption(f"Server folder: `{DOWNLOADED_VIDEOS_DIR}`")
-
-            c_btn1, c_btn2 = st.columns([1, 1])
-            with c_btn1:
-                if st.button("🔄 Refresh", use_container_width=True):
-                    st.rerun()
-            with c_btn2:
-                with st.popover("ℹ️ Folder Info"):
-                    st.markdown(f"**Path on Server:**\n`{DOWNLOADED_VIDEOS_DIR}`")
-                    st.markdown("Drop or download any video files (`.mp4`, `.webm`, `.mkv`, etc.) directly into this folder on your server.")
-
-        elif source_mode == "🔗 YouTube URL":
-            youtube_url = st.text_input(
+        if source_mode == "🔗 YouTube URL":
+            source = st.text_input(
                 "source_input",
                 placeholder="https://youtube.com/watch?v=...",
                 label_visibility="collapsed",
-            )
-            source = youtube_url.strip() if youtube_url else ""
-            st.caption("📥 YouTube videos are downloaded to `downloaded_videos/` on the server and reused.")
-
-            if st.button("⬇️ Download Video to Server", use_container_width=True):
-                if not source:
-                    st.warning("Please enter a YouTube URL first.")
-                else:
-                    with st.spinner("Downloading video to server folder..."):
-                        try:
-                            saved_path = download_youtube_video(source)
-                            st.success(f"✅ Saved on server: `{os.path.basename(saved_path)}`")
-                            time.sleep(1)
-                            st.rerun()
-                        except Exception as dl_err:
-                            st.error(f"Download failed: {dl_err}")
+            ).strip()
 
             # YouTube Cookies / Bot Bypass Tool
             active_cookie = get_cookie_file()
-            with st.expander("🍪 YouTube Cookies (Bypass Server IP Block)", expanded=not bool(active_cookie)):
+            with st.expander(
+                "🍪 YouTube Cookies" + (" ✅" if active_cookie else " ⚠️ Not set"),
+                expanded=not bool(active_cookie),
+            ):
                 if active_cookie:
-                    st.success(f"✅ Cookies active (`{os.path.basename(active_cookie)}`)")
+                    st.success(f"Cookies active: `{os.path.basename(active_cookie)}`")
                 else:
-                    st.warning("⚠️ No cookies loaded. Cloud/VPS IPs are blocked by YouTube without cookies.")
+                    st.warning("No cookies — server IP may be blocked by YouTube.")
 
                 c_tab1, c_tab2 = st.tabs(["Upload cookies.txt", "Paste Cookies"])
                 with c_tab1:
-                    uploaded_c = st.file_uploader("Upload cookies.txt", type=["txt"], key="ui_cookie_file", label_visibility="collapsed")
+                    uploaded_c = st.file_uploader(
+                        "Upload cookies.txt", type=["txt"],
+                        key="ui_cookie_file", label_visibility="collapsed",
+                    )
                     if uploaded_c is not None:
                         save_cookie_content(uploaded_c.getvalue().decode("utf-8", errors="ignore"))
-                        st.success("✅ cookies.txt saved to server!")
+                        st.success("✅ cookies.txt saved!")
                         time.sleep(0.5)
                         st.rerun()
 
                 with c_tab2:
-                    pasted_c = st.text_area("Paste Netscape Cookie Content:", height=70, key="ui_cookie_paste", label_visibility="collapsed", placeholder="# Netscape HTTP Cookie File...")
-                    if st.button("💾 Save Pasted Cookies", use_container_width=True, key="ui_save_cookie_btn"):
+                    pasted_c = st.text_area(
+                        "Paste cookie text", height=60,
+                        key="ui_cookie_paste", label_visibility="collapsed",
+                        placeholder="# Netscape HTTP Cookie File...",
+                    )
+                    if st.button("💾 Save Cookies", use_container_width=True, key="ui_save_cookie_btn"):
                         if pasted_c.strip():
                             save_cookie_content(pasted_c.strip())
-                            st.success("✅ Cookies saved to server!")
+                            st.success("✅ Cookies saved!")
                             time.sleep(0.5)
                             st.rerun()
                         else:
                             st.warning("Please paste cookie text first.")
 
-                st.caption("💡 **Tip:** Export cookies using Chrome/Firefox extension *'Get cookies.txt LOCALLY'* while logged into YouTube.")
+                st.caption("Export cookies with Chrome/Firefox extension: *Get cookies.txt LOCALLY*")
 
         else:
+            save_dir = os.path.join(PROJECT_ROOT, "data", "downloads")
+            os.makedirs(save_dir, exist_ok=True)
             uploaded_file = st.file_uploader(
                 "Upload audio/video",
                 type=["mp3", "mp4", "wav", "m4a", "webm", "ogg", "flac", "aac", "mov", "mkv"],
                 label_visibility="collapsed",
             )
             if uploaded_file is not None:
-                os.makedirs(DOWNLOADED_VIDEOS_DIR, exist_ok=True)
-                save_path = os.path.join(DOWNLOADED_VIDEOS_DIR, uploaded_file.name)
+                save_path = os.path.join(save_dir, uploaded_file.name)
                 with open(save_path, "wb") as f:
                     f.write(uploaded_file.getbuffer())
                 source = save_path
-                st.caption(f"📁 Saved to `downloaded_videos/` & Ready: `{uploaded_file.name}`")
+                st.caption(f"Ready: **{uploaded_file.name}**")
 
         st.markdown('<span class="panel-label" style="margin-top:0.75rem;display:block;">🌐 Language</span>', unsafe_allow_html=True)
         language = st.selectbox("lang", ["english", "hinglish"], index=0, label_visibility="collapsed")
@@ -197,7 +156,7 @@ with left_col:
         speed_map = {
             "Fast (base) - Recommended": "base",
             "Ultra-fast (tiny)": "tiny",
-            "Accurate (small)": "small"
+            "Accurate (small)": "small",
         }
         selected_whisper_model = speed_map[model_choice]
 
@@ -237,8 +196,6 @@ with right_col:
         if not source or not source.strip():
             if "YouTube" in source_mode:
                 st.error("Please provide a valid YouTube URL.")
-            elif "Server" in source_mode:
-                st.error("Please select a video from the server folder or place video files in 'downloaded_videos/'.")
             else:
                 st.error("Please upload an audio or video file.")
         else:
@@ -284,8 +241,8 @@ with right_col:
         # Title Card
         st.markdown(f"""
         <div class="card" style="border-left: 4px solid var(--accent);">
-            <div class="card-title">📌 Session Title</div>
-            <div style="font-family:'Lora',serif;font-size:1.35rem;font-weight:600;color:var(--text);line-height:1.4;">
+            <div class="card-title" style="color:#000000;">📌 Session Title</div>
+            <div style="font-family:'Lora',serif;font-size:1.35rem;font-weight:700;color:#000000;line-height:1.4;">
                 {r['title']}
             </div>
         </div>""", unsafe_allow_html=True)
@@ -295,45 +252,45 @@ with right_col:
         with col1:
             st.markdown(f"""
             <div class="card">
-                <div class="card-title">📋 Executive Summary</div>
-                <div class="card-content">{r['summary']}</div>
+                <div class="card-title" style="color:#000000;">📋 Executive Summary</div>
+                <div class="card-content" style="color:#000000;">{r['summary']}</div>
             </div>""", unsafe_allow_html=True)
 
         with col2:
             with st.expander("📝 Full Transcript", expanded=False):
-                st.markdown(f'<div class="transcript-box">{r["transcript"]}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="transcript-box" style="color:#000000;">{r["transcript"]}</div>', unsafe_allow_html=True)
 
         # Action Items, Key Decisions & Open Questions
         c1, c2, c3 = st.columns(3, gap="medium")
         with c1:
             st.markdown(f"""
             <div class="card" style="border-top: 3px solid var(--accent);">
-                <div class="card-title">✅ Action Items</div>
-                <div class="card-content">{r['action_items']}</div>
+                <div class="card-title" style="color:#000000;">✅ Action Items</div>
+                <div class="card-content" style="color:#000000;">{r['action_items']}</div>
             </div>""", unsafe_allow_html=True)
 
         with c2:
             st.markdown(f"""
             <div class="card" style="border-top: 3px solid var(--accent-2);">
-                <div class="card-title">🔑 Key Decisions</div>
-                <div class="card-content">{r['key_decisions']}</div>
+                <div class="card-title" style="color:#000000;">🔑 Key Decisions</div>
+                <div class="card-content" style="color:#000000;">{r['key_decisions']}</div>
             </div>""", unsafe_allow_html=True)
 
         with c3:
             st.markdown(f"""
             <div class="card" style="border-top: 3px solid var(--border-strong);">
-                <div class="card-title">❓ Open Questions</div>
-                <div class="card-content">{r['open_questions']}</div>
+                <div class="card-title" style="color:#000000;">❓ Open Questions</div>
+                <div class="card-content" style="color:#000000;">{r['open_questions']}</div>
             </div>""", unsafe_allow_html=True)
 
         st.markdown("---")
 
         # ── Interactive RAG Chat ─────────────────────────────────────────────
         st.markdown("""
-        <div style="font-family:'Lora',serif;font-size:1.2rem;font-weight:600;margin-bottom:0.4rem;color:var(--text);">
+        <div style="font-family:'Lora',serif;font-size:1.2rem;font-weight:700;margin-bottom:0.4rem;color:#000000;">
             💬 Chat with Meeting (RAG Powered)
         </div>
-        <div style="font-size:0.84rem;color:var(--text-muted);margin-bottom:0.9rem;">
+        <div style="font-size:0.88rem;font-weight:600;color:#111111;margin-bottom:0.9rem;">
             Ask specific questions grounded in the indexed meeting transcript.
         </div>
         """, unsafe_allow_html=True)
