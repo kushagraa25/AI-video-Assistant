@@ -72,16 +72,40 @@ with left_col:
 
     with st.container():
         st.markdown('<span class="panel-label">📎 Video / Audio Source</span>', unsafe_allow_html=True)
-        source = st.text_input(
-            "source_input",
-            placeholder="https://youtube.com/watch?v=...",
+        source_mode = st.radio(
+            "Source mode",
+            ["🔗 YouTube URL", "📁 Upload file"],
+            horizontal=True,
             label_visibility="collapsed",
         ).strip()
 
-        st.markdown('<span class="panel-label" style="margin-top:0.75rem;display:block;">🌐 Language</span>', unsafe_allow_html=True)
+        source = ""
+        if source_mode == "🔗 YouTube URL":
+            source = st.text_input(
+                "source_input",
+                placeholder="https://youtube.com/watch?v=...",
+                label_visibility="collapsed",
+            ).strip()
+        else:
+            uploaded_file = st.file_uploader(
+                "Upload any audio or video file",
+                type=None,
+                label_visibility="collapsed",
+            )
+            if uploaded_file is not None:
+                save_dir = os.path.join(PROJECT_ROOT, "data", "downloads")
+                os.makedirs(save_dir, exist_ok=True)
+                safe_name = os.path.basename(uploaded_file.name)
+                save_path = os.path.join(save_dir, safe_name)
+                with open(save_path, "wb") as file_handle:
+                    file_handle.write(uploaded_file.getbuffer())
+                source = save_path
+                st.caption(f"Ready: {safe_name}")
+
+        st.markdown('<span class="panel-label">🌐 Language</span>', unsafe_allow_html=True)
         language = st.selectbox("lang", ["english", "hinglish"], index=0, label_visibility="collapsed")
 
-        st.markdown('<span class="panel-label" style="margin-top:0.75rem;display:block;">⚡ Model Precision</span>', unsafe_allow_html=True)
+        st.markdown('<span class="panel-label">⚡ Model Precision</span>', unsafe_allow_html=True)
         model_choice = st.selectbox(
             "speed",
             ["Fast (base) - Recommended", "Ultra-fast (tiny)", "Accurate (small)"],
@@ -129,7 +153,10 @@ with right_col:
     # ── Pipeline Execution ──────────────────────────────────────────────────
     if run_btn:
         if not source or not source.strip():
-            st.error("Please provide a valid YouTube URL.")
+            if source_mode == "🔗 YouTube URL":
+                st.error("Please provide a valid YouTube URL.")
+            else:
+                st.error("Please upload an audio or video file.")
         else:
             st.session_state.pipeline_done = False
             st.session_state.result = None
@@ -299,7 +326,7 @@ with right_col:
             </div>
             <div style="color:var(--text-muted);font-size:0.88rem;
                         max-width:380px;line-height:1.75;margin-bottom:1.75rem;">
-                Paste a YouTube URL on the left,
+                Paste a YouTube URL or upload an audio/video file on the left,
                 choose your language &amp; model, then click
                 <strong style="color:var(--accent);">Analyse Meeting</strong>.
             </div>

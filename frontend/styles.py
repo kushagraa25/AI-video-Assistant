@@ -107,6 +107,35 @@ footer                         { display: none !important; }
     display: block;
 }
 
+.stRadio {
+    margin: 0.15rem 0 0.85rem !important;
+}
+
+.stRadio [role="radiogroup"] {
+    gap: 0.45rem !important;
+    flex-wrap: wrap !important;
+}
+
+.stRadio [role="radio"] {
+    min-height: 2.35rem !important;
+    padding: 0.45rem 0.75rem !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 9px !important;
+    background: var(--surface-2) !important;
+}
+
+.stFileUploader {
+    margin-bottom: 0.85rem !important;
+}
+
+.stFileUploader section {
+    min-height: 7rem !important;
+    padding: 0.75rem !important;
+    border: 1px dashed var(--border-strong) !important;
+    border-radius: 10px !important;
+    background: var(--surface-2) !important;
+}
+
 /* High Contrast Input Fields */
 .stTextInput > div > div > input,
 .stSelectbox > div > div {
