@@ -18,7 +18,6 @@ if PROJECT_ROOT not in sys.path:
 from frontend.styles import CUSTOM_CSS
 from backend.pipeline import VideoAssistantPipeline
 from backend.rag_engine import ask_question
-from backend.audio_processor import get_cookie_file, save_cookie_content
 
 # ─── Page Configuration ─────────────────────────────────────────────────────────
 st.set_page_config(
@@ -73,75 +72,11 @@ with left_col:
 
     with st.container():
         st.markdown('<span class="panel-label">📎 Video / Audio Source</span>', unsafe_allow_html=True)
-        source_mode = st.radio(
-            "Source Mode",
-            ["🔗 YouTube URL", "📤 Upload File"],
-            horizontal=True,
+        source = st.text_input(
+            "source_input",
+            placeholder="https://youtube.com/watch?v=...",
             label_visibility="collapsed",
-        )
-
-        source = ""
-        if source_mode == "🔗 YouTube URL":
-            source = st.text_input(
-                "source_input",
-                placeholder="https://youtube.com/watch?v=...",
-                label_visibility="collapsed",
-            ).strip()
-
-            # YouTube Cookies / Bot Bypass Tool
-            active_cookie = get_cookie_file()
-            with st.expander(
-                "🍪 YouTube Cookies" + (" ✅" if active_cookie else " ⚠️ Not set"),
-                expanded=not bool(active_cookie),
-            ):
-                if active_cookie:
-                    st.success(f"Cookies active: `{os.path.basename(active_cookie)}`")
-                else:
-                    st.warning("No cookies — server IP may be blocked by YouTube.")
-
-                c_tab1, c_tab2 = st.tabs(["Upload cookies.txt", "Paste Cookies"])
-                with c_tab1:
-                    uploaded_c = st.file_uploader(
-                        "Upload cookies.txt", type=["txt"],
-                        key="ui_cookie_file", label_visibility="collapsed",
-                    )
-                    if uploaded_c is not None:
-                        save_cookie_content(uploaded_c.getvalue().decode("utf-8", errors="ignore"))
-                        st.success("✅ cookies.txt saved!")
-                        time.sleep(0.5)
-                        st.rerun()
-
-                with c_tab2:
-                    pasted_c = st.text_area(
-                        "Paste cookie text", height=60,
-                        key="ui_cookie_paste", label_visibility="collapsed",
-                        placeholder="# Netscape HTTP Cookie File...",
-                    )
-                    if st.button("💾 Save Cookies", use_container_width=True, key="ui_save_cookie_btn"):
-                        if pasted_c.strip():
-                            save_cookie_content(pasted_c.strip())
-                            st.success("✅ Cookies saved!")
-                            time.sleep(0.5)
-                            st.rerun()
-                        else:
-                            st.warning("Please paste cookie text first.")
-
-                st.caption("Export cookies with Chrome/Firefox extension: *Get cookies.txt LOCALLY*")
-
-        else:
-            save_dir = os.path.join(PROJECT_ROOT, "data", "downloads")
-            os.makedirs(save_dir, exist_ok=True)
-            uploaded_file = st.file_uploader(
-                "Upload audio/video",
-                type=["mp3", "mp4", "wav", "m4a", "webm", "ogg", "flac", "aac", "mov", "mkv"],
-                label_visibility="collapsed",
-            )
-            if uploaded_file is not None:
-                save_path = os.path.join(save_dir, uploaded_file.name)
-                with open(save_path, "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-                source = save_path
-                st.caption(f"Ready: **{uploaded_file.name}**")
+        ).strip()
 
         st.markdown('<span class="panel-label" style="margin-top:0.75rem;display:block;">🌐 Language</span>', unsafe_allow_html=True)
         language = st.selectbox("lang", ["english", "hinglish"], index=0, label_visibility="collapsed")
@@ -194,10 +129,7 @@ with right_col:
     # ── Pipeline Execution ──────────────────────────────────────────────────
     if run_btn:
         if not source or not source.strip():
-            if "YouTube" in source_mode:
-                st.error("Please provide a valid YouTube URL.")
-            else:
-                st.error("Please upload an audio or video file.")
+            st.error("Please provide a valid YouTube URL.")
         else:
             st.session_state.pipeline_done = False
             st.session_state.result = None
@@ -367,7 +299,7 @@ with right_col:
             </div>
             <div style="color:var(--text-muted);font-size:0.88rem;
                         max-width:380px;line-height:1.75;margin-bottom:1.75rem;">
-                Paste a YouTube URL or upload a media file on the left,
+                Paste a YouTube URL on the left,
                 choose your language &amp; model, then click
                 <strong style="color:var(--accent);">Analyse Meeting</strong>.
             </div>

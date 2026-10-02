@@ -1,6 +1,5 @@
 import os
 import re
-import base64
 import yt_dlp
 from pydub import AudioSegment
 
@@ -80,136 +79,6 @@ def list_downloaded_videos(dir_path: str = DOWNLOADED_VIDEOS_DIR) -> list[dict]:
     files.sort(key=lambda x: x["modified"], reverse=True)
     return files
 
-def get_cookie_file() -> str | None:
-    """
-    Locates or generates a cookies.txt file for authenticated yt-dlp requests.
-    Supports:
-    1. YOUTUBE_COOKIES_FILE env var (path to cookies file)
-    2. YOUTUBE_COOKIES / YTDLP_COOKIES env var (raw Netscape or base64 text)
-    3. cookies.txt file in project root or downloads directory
-    """
-    # 1. Custom path via env
-    custom_path = os.getenv("YOUTUBE_COOKIES_FILE")
-    if custom_path and os.path.exists(custom_path):
-        return custom_path
-
-    # 2. Raw content in env var (convenient for cloud hosts like Render)
-    raw_cookies = os.getenv("YOUTUBE_COOKIES") or os.getenv("YTDLP_COOKIES")
-    if raw_cookies and raw_cookies.strip():
-        cookie_text = raw_cookies.strip()
-        try:
-            import base64
-            decoded = base64.b64decode(cookie_text).decode("utf-8")
-            if "# Netscape" in decoded or "\t" in decoded:
-                cookie_text = decoded
-        except Exception:
-            pass
-
-        cookie_path = os.path.join(DOWNLOAD_DIR, "yt_cookies.txt")
-        with open(cookie_path, "w", encoding="utf-8") as f:
-            f.write(cookie_text)
-        return cookie_path
-
-    # 3. Local file in project root or downloads directory
-    candidates = [
-        os.path.join(BASE_DIR, "cookies.txt"),
-        os.path.join(DOWNLOADED_VIDEOS_DIR, "cookies.txt"),
-        os.path.join(DOWNLOAD_DIR, "cookies.txt"),
-        os.path.join(BASE_DIR, "youtube_cookies.txt"),
-    ]
-    for candidate in candidates:
-        if os.path.exists(candidate) and os.path.getsize(candidate) > 0:
-            return candidate
-
-    return None
-
-def save_cookie_content(cookie_text: str) -> str:
-    """Saves raw Netscape cookies text to cookies.txt in BASE_DIR."""
-    cookie_path = os.path.join(BASE_DIR, "cookies.txt")
-    with open(cookie_path, "w", encoding="utf-8") as f:
-        f.write(cookie_text.strip())
-    return cookie_path
-
-def download_youtube_audio(url: str) -> str:
-    """
-    Downloads audio from a YouTube URL and converts it to a standard 16kHz mono WAV file.
-    Uses video ID in the filename template to avoid invalid Windows path characters.
-    Employs mobile player clients (android, ios, mweb) and cookie handling to bypass
-    datacenter IP bot detection on cloud hosting platforms like Render.
-    """
-    output_template = os.path.join(DOWNLOAD_DIR, "%(id)s.%(ext)s")
-    cookie_file = get_cookie_file()
-    proxy = os.getenv("YOUTUBE_PROXY") or os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
-
-    ydl_opts = {
-        "format": "bestaudio/best",
-        "outtmpl": output_template,
-        "windowsfilenames": True,
-        "restrictfilenames": True,
-        "quiet": True,
-        "no_warnings": False,
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["android", "ios", "tv", "mweb", "web"],
-                "player_skip": ["configs", "webpage"],
-            }
-        },
-        "http_headers": {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/128.0.0.0 Safari/537.36"
-            ),
-            "Accept-Language": "en-US,en;q=0.9",
-        },
-        "postprocessors": [
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "wav",
-                "preferredquality": "192",
-            }
-        ],
-    }
-
-    if cookie_file:
-        ydl_opts["cookiefile"] = cookie_file
-
-    if proxy:
-        ydl_opts["proxy"] = proxy
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            video_id = info.get("id", "audio")
-            raw_wav_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.wav")
-            if not os.path.exists(raw_wav_path):
-                raw_wav_path = os.path.splitext(ydl.prepare_filename(info))[0] + ".wav"
-    except Exception as e:
-        err_msg = str(e)
-        if any(term in err_msg.lower() for term in ["sign in to confirm", "bot", "429", "too many requests", "unavailable"]):
-            raise RuntimeError(
-                "YouTube has blocked audio download on this server IP (bot verification / rate limit).\n\n"
-                "How to solve this on Render:\n"
-                "1. Direct File Upload (Recommended): Use the 'Upload File' tab in the left sidebar to upload your audio/video file directly.\n"
-                "2. YouTube Cookies: Export your cookies using a browser extension (e.g. 'Get cookies.txt LOCALLY') and add the content as a YOUTUBE_COOKIES environment variable in Render."
-            ) from e
-        raise e
-
-    # Normalize audio to 16kHz mono for Whisper & Sarvam
-    normalized_wav_path = os.path.join(DOWNLOAD_DIR, f"{video_id}_16k.wav")
-    audio = AudioSegment.from_file(raw_wav_path)
-    audio = audio.set_channels(1).set_frame_rate(16000)
-    audio.export(normalized_wav_path, format="wav")
-
-    # Remove intermediate raw wav if separate
-    if os.path.abspath(raw_wav_path) != os.path.abspath(normalized_wav_path) and os.path.exists(raw_wav_path):
-        try:
-            os.remove(raw_wav_path)
-        except OSError:
-            pass
-
-    return normalized_wav_path
-
 def download_youtube_video(url: str, output_dir: str = DOWNLOADED_VIDEOS_DIR) -> str:
     """
     Downloads a video from YouTube directly onto the server into `downloaded_videos`.
@@ -226,7 +95,6 @@ def download_youtube_video(url: str, output_dir: str = DOWNLOADED_VIDEOS_DIR) ->
             print(f"Found existing downloaded video on server: {existing_path}")
             return existing_path
 
-    cookie_file = get_cookie_file()
     output_template = os.path.join(output_dir, "%(title).100B [%(id)s].%(ext)s")
 
     ydl_opts = {
@@ -252,9 +120,6 @@ def download_youtube_video(url: str, output_dir: str = DOWNLOADED_VIDEOS_DIR) ->
             "Accept-Language": "en-US,en;q=0.9",
         },
     }
-
-    if cookie_file:
-        ydl_opts["cookiefile"] = cookie_file
 
     proxy = os.getenv("YOUTUBE_PROXY") or os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
     if proxy:
@@ -282,16 +147,7 @@ def download_youtube_video(url: str, output_dir: str = DOWNLOADED_VIDEOS_DIR) ->
             return downloaded_file
 
     except Exception as e:
-        err_msg = str(e)
-        if any(term in err_msg.lower() for term in ["sign in to confirm", "bot", "429", "too many requests", "unavailable"]):
-            raise RuntimeError(
-                f"YouTube has blocked video download on this server IP (bot verification / rate limit).\n\n"
-                f"Solutions:\n"
-                f"1. Download the video manually and place it in the server folder: '{output_dir}'.\n"
-                f"2. Or upload it using the 'Upload File' tab.\n"
-                f"3. Or add your YouTube cookies to cookies.txt."
-            ) from e
-        raise e
+        raise RuntimeError(f"yt-dlp could not download the YouTube video: {e}") from e
 
 def convert_to_wav(input_path: str) -> str:
     """Convert any local audio/video file to 16kHz mono WAV format in the downloads directory."""
@@ -361,17 +217,10 @@ def process_input(source: str) -> list[str]:
     source_clean = source.strip().strip("'").strip('"')
     if source_clean.startswith("http://") or source_clean.startswith("https://"):
         print("Detected YouTube URL. Downloading video to server folder 'downloaded_videos'...")
-        try:
-            downloaded_video_path = download_youtube_video(source_clean)
-            print(f"Downloaded video on server: {downloaded_video_path}")
-            print("Converting downloaded video to WAV...")
-            wav_path = convert_to_wav(downloaded_video_path)
-        except Exception as e:
-            print(f"Video download failed ({e}), attempting fallback to audio stream...")
-            try:
-                wav_path = download_youtube_audio(source_clean)
-            except Exception:
-                raise e
+        downloaded_video_path = download_youtube_video(source_clean)
+        print(f"Downloaded video on server: {downloaded_video_path}")
+        print("Converting downloaded video to WAV...")
+        wav_path = convert_to_wav(downloaded_video_path)
     else:
         print(f"Detected local file ({source_clean}). Converting to WAV...")
         wav_path = convert_to_wav(source_clean)

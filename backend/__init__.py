@@ -10,8 +10,6 @@ from backend.audio_processor import (
     download_youtube_video,
     list_downloaded_videos,
     DOWNLOADED_VIDEOS_DIR,
-    get_cookie_file,
-    save_cookie_content,
 )
 from backend.transcriber import transcribe_all
 from backend.summarizer import summarize, generate_title, extract_meeting_insights
@@ -25,8 +23,6 @@ __all__ = [
     "download_youtube_video",
     "list_downloaded_videos",
     "DOWNLOADED_VIDEOS_DIR",
-    "get_cookie_file",
-    "save_cookie_content",
     "transcribe_all",
     "summarize",
     "generate_title",
