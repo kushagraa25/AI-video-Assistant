@@ -3,11 +3,17 @@ import re
 import shutil
 import yt_dlp
 from dotenv import load_dotenv
-from pydub import AudioSegment
 
 load_dotenv()
 
 ffmpeg_binary = shutil.which("ffmpeg") or "/usr/bin/ffmpeg"
+if os.path.isfile(ffmpeg_binary):
+    ffmpeg_directory = os.path.dirname(ffmpeg_binary)
+    if ffmpeg_directory not in os.getenv("PATH", "").split(os.pathsep):
+        os.environ["PATH"] = ffmpeg_directory + os.pathsep + os.getenv("PATH", "")
+
+from pydub import AudioSegment
+
 if os.path.isfile(ffmpeg_binary):
     AudioSegment.converter = ffmpeg_binary
     AudioSegment.ffmpeg = ffmpeg_binary
