@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 import yt_dlp
 from dotenv import load_dotenv
 from pydub import AudioSegment
@@ -134,11 +135,19 @@ def download_youtube_video(url: str, output_dir: str = DOWNLOADED_VIDEOS_DIR) ->
     if cookie_file:
         ydl_opts["cookiefile"] = cookie_file
 
+    deno_bin_dir = "/root/.deno/bin"
+    if os.path.isdir(deno_bin_dir) and deno_bin_dir not in os.getenv("PATH", "").split(os.pathsep):
+        os.environ["PATH"] = deno_bin_dir + os.pathsep + os.getenv("PATH", "")
+
     js_runtime = os.getenv("YTDLP_JS_RUNTIME", "").strip()
+    if not js_runtime and shutil.which("deno"):
+        js_runtime = "deno"
     if js_runtime:
         ydl_opts["js_runtimes"] = {js_runtime: {}}
 
     remote_components = os.getenv("YTDLP_REMOTE_COMPONENTS", "").strip()
+    if not remote_components and js_runtime == "deno":
+        remote_components = "ejs:github"
     if remote_components:
         ydl_opts["remote_components"] = [
             component.strip()
