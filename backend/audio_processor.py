@@ -79,6 +79,21 @@ def list_downloaded_videos(dir_path: str = DOWNLOADED_VIDEOS_DIR) -> list[dict]:
     files.sort(key=lambda x: x["modified"], reverse=True)
     return files
 
+def get_cookie_file() -> str | None:
+    """Return an optional server-side yt-dlp cookie file configured by path."""
+    cookie_path = os.getenv("YOUTUBE_COOKIES_FILE", "").strip()
+    if not cookie_path:
+        return None
+
+    if not os.path.isabs(cookie_path):
+        cookie_path = os.path.join(BASE_DIR, cookie_path)
+
+    if not os.path.isfile(cookie_path) or os.path.getsize(cookie_path) == 0:
+        raise FileNotFoundError(
+            f"YOUTUBE_COOKIES_FILE does not point to a readable cookie file: {cookie_path}"
+        )
+    return cookie_path
+
 def download_youtube_video(url: str, output_dir: str = DOWNLOADED_VIDEOS_DIR) -> str:
     """
     Downloads a video from YouTube directly onto the server into `downloaded_videos`.
@@ -95,6 +110,7 @@ def download_youtube_video(url: str, output_dir: str = DOWNLOADED_VIDEOS_DIR) ->
             print(f"Found existing downloaded video on server: {existing_path}")
             return existing_path
 
+    cookie_file = get_cookie_file()
     output_template = os.path.join(output_dir, "%(title).100B [%(id)s].%(ext)s")
 
     ydl_opts = {
@@ -120,6 +136,9 @@ def download_youtube_video(url: str, output_dir: str = DOWNLOADED_VIDEOS_DIR) ->
             "Accept-Language": "en-US,en;q=0.9",
         },
     }
+
+    if cookie_file:
+        ydl_opts["cookiefile"] = cookie_file
 
     proxy = os.getenv("YOUTUBE_PROXY") or os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
     if proxy:
