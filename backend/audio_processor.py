@@ -138,6 +138,14 @@ def download_youtube_video(url: str, output_dir: str = DOWNLOADED_VIDEOS_DIR) ->
     if js_runtime:
         ydl_opts["js_runtimes"] = {js_runtime: {}}
 
+    remote_components = os.getenv("YTDLP_REMOTE_COMPONENTS", "").strip()
+    if remote_components:
+        ydl_opts["remote_components"] = [
+            component.strip()
+            for component in remote_components.split(",")
+            if component.strip()
+        ]
+
     user_agent = os.getenv("YOUTUBE_USER_AGENT", "").strip()
     if user_agent:
         ydl_opts["http_headers"] = {"User-Agent": user_agent}

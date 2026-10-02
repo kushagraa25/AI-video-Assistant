@@ -138,8 +138,15 @@ YouTube may challenge requests from VPS and datacenter IPs. The web UI does not 
   ```env
   YOUTUBE_COOKIES_FILE=/var/www/netaji/AI-video-Assistant/cookies.txt
   YTDLP_JS_RUNTIME=deno
+  YTDLP_REMOTE_COMPONENTS=ejs:github
   ```
-5. Ensure the service user can find Deno in `PATH`, restart Streamlit, and retry the YouTube URL.
+5. Verify the same Python environment used by systemd has the dependencies:
+  ```bash
+  /path/to/venv/bin/python -m pip install -U "yt-dlp[default]"
+  /path/to/venv/bin/python -m yt_dlp --version
+  /home/SERVICE_USER/.deno/bin/deno --version
+  ```
+6. Add `/home/SERVICE_USER/.deno/bin` to the systemd service `PATH`, restart Streamlit, and retry the YouTube URL. `YTDLP_REMOTE_COMPONENTS=ejs:github` is a fallback for environments where the `yt-dlp-ejs` package is not available locally.
 
 The cookies should come from a session that has recently opened YouTube. If YouTube still blocks the VPS IP, use a proxy or a different VPS IP; cookies alone cannot bypass an IP-level block. Keep the cookie file private because it represents an authenticated browser session.
 
