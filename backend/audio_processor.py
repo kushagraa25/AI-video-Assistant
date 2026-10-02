@@ -7,6 +7,15 @@ from pydub import AudioSegment
 
 load_dotenv()
 
+ffmpeg_binary = shutil.which("ffmpeg") or "/usr/bin/ffmpeg"
+if os.path.isfile(ffmpeg_binary):
+    AudioSegment.converter = ffmpeg_binary
+    AudioSegment.ffmpeg = ffmpeg_binary
+
+ffprobe_binary = shutil.which("ffprobe") or "/usr/bin/ffprobe"
+if os.path.isfile(ffprobe_binary):
+    AudioSegment.ffprobe = ffprobe_binary
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOWNLOAD_DIR = os.path.join(BASE_DIR, "data", "downloads")
 DOWNLOADED_VIDEOS_DIR = os.path.join(BASE_DIR, "downloaded_videos")
