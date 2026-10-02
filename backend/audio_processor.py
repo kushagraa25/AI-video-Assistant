@@ -113,6 +113,7 @@ def get_cookie_file() -> str | None:
     # 3. Local file in project root or downloads directory
     candidates = [
         os.path.join(BASE_DIR, "cookies.txt"),
+        os.path.join(DOWNLOADED_VIDEOS_DIR, "cookies.txt"),
         os.path.join(DOWNLOAD_DIR, "cookies.txt"),
         os.path.join(BASE_DIR, "youtube_cookies.txt"),
     ]
@@ -121,6 +122,13 @@ def get_cookie_file() -> str | None:
             return candidate
 
     return None
+
+def save_cookie_content(cookie_text: str) -> str:
+    """Saves raw Netscape cookies text to cookies.txt in BASE_DIR."""
+    cookie_path = os.path.join(BASE_DIR, "cookies.txt")
+    with open(cookie_path, "w", encoding="utf-8") as f:
+        f.write(cookie_text.strip())
+    return cookie_path
 
 def download_youtube_audio(url: str) -> str:
     """
@@ -131,6 +139,7 @@ def download_youtube_audio(url: str) -> str:
     """
     output_template = os.path.join(DOWNLOAD_DIR, "%(id)s.%(ext)s")
     cookie_file = get_cookie_file()
+    proxy = os.getenv("YOUTUBE_PROXY") or os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
 
     ydl_opts = {
         "format": "bestaudio/best",
@@ -164,6 +173,9 @@ def download_youtube_audio(url: str) -> str:
 
     if cookie_file:
         ydl_opts["cookiefile"] = cookie_file
+
+    if proxy:
+        ydl_opts["proxy"] = proxy
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -243,6 +255,10 @@ def download_youtube_video(url: str, output_dir: str = DOWNLOADED_VIDEOS_DIR) ->
 
     if cookie_file:
         ydl_opts["cookiefile"] = cookie_file
+
+    proxy = os.getenv("YOUTUBE_PROXY") or os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
+    if proxy:
+        ydl_opts["proxy"] = proxy
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:

@@ -22,6 +22,8 @@ from backend.audio_processor import (
     list_downloaded_videos,
     download_youtube_video,
     DOWNLOADED_VIDEOS_DIR,
+    get_cookie_file,
+    save_cookie_content,
 )
 
 # ─── Page Configuration ─────────────────────────────────────────────────────────
@@ -137,6 +139,36 @@ with left_col:
                             st.rerun()
                         except Exception as dl_err:
                             st.error(f"Download failed: {dl_err}")
+
+            # YouTube Cookies / Bot Bypass Tool
+            active_cookie = get_cookie_file()
+            with st.expander("🍪 YouTube Cookies (Bypass Server IP Block)", expanded=not bool(active_cookie)):
+                if active_cookie:
+                    st.success(f"✅ Cookies active (`{os.path.basename(active_cookie)}`)")
+                else:
+                    st.warning("⚠️ No cookies loaded. Cloud/VPS IPs are blocked by YouTube without cookies.")
+
+                c_tab1, c_tab2 = st.tabs(["Upload cookies.txt", "Paste Cookies"])
+                with c_tab1:
+                    uploaded_c = st.file_uploader("Upload cookies.txt", type=["txt"], key="ui_cookie_file", label_visibility="collapsed")
+                    if uploaded_c is not None:
+                        save_cookie_content(uploaded_c.getvalue().decode("utf-8", errors="ignore"))
+                        st.success("✅ cookies.txt saved to server!")
+                        time.sleep(0.5)
+                        st.rerun()
+
+                with c_tab2:
+                    pasted_c = st.text_area("Paste Netscape Cookie Content:", height=70, key="ui_cookie_paste", label_visibility="collapsed", placeholder="# Netscape HTTP Cookie File...")
+                    if st.button("💾 Save Pasted Cookies", use_container_width=True, key="ui_save_cookie_btn"):
+                        if pasted_c.strip():
+                            save_cookie_content(pasted_c.strip())
+                            st.success("✅ Cookies saved to server!")
+                            time.sleep(0.5)
+                            st.rerun()
+                        else:
+                            st.warning("Please paste cookie text first.")
+
+                st.caption("💡 **Tip:** Export cookies using Chrome/Firefox extension *'Get cookies.txt LOCALLY'* while logged into YouTube.")
 
         else:
             uploaded_file = st.file_uploader(
