@@ -131,7 +131,10 @@ YouTube may challenge requests from VPS and datacenter IPs. The web UI does not 
 2. Copy it to the VPS, for example `/var/www/netaji/AI-video-Assistant/cookies.txt`, and restrict access with `chmod 600 cookies.txt`.
 3. Install the current yt-dlp extras and a JavaScript runtime for YouTube challenge solving:
   ```bash
-  python -m pip install -U "yt-dlp[default]"
+  sudo apt-get update
+  sudo apt-get install -y python3-venv ffmpeg curl
+  python3 -m venv /var/www/netaji/AI-video-Assistant/.venv --system-site-packages
+  /var/www/netaji/AI-video-Assistant/.venv/bin/python -m pip install -U pip "yt-dlp[default]"
   curl -fsSL https://deno.land/install.sh | sh
   ```
 4. Set these variables in the service environment:
@@ -142,11 +145,10 @@ YouTube may challenge requests from VPS and datacenter IPs. The web UI does not 
   ```
 5. Verify the same Python environment used by systemd has the dependencies:
   ```bash
-  /path/to/venv/bin/python -m pip install -U "yt-dlp[default]"
-  /path/to/venv/bin/python -m yt_dlp --version
-  /home/SERVICE_USER/.deno/bin/deno --version
+  /var/www/netaji/AI-video-Assistant/.venv/bin/python -m yt_dlp --version
+  /root/.deno/bin/deno --version
   ```
-6. Add `/home/SERVICE_USER/.deno/bin` to the systemd service `PATH`, restart Streamlit, and retry the YouTube URL. `YTDLP_REMOTE_COMPONENTS=ejs:github` is a fallback for environments where the `yt-dlp-ejs` package is not available locally.
+6. Point systemd `ExecStart` at `/var/www/netaji/AI-video-Assistant/.venv/bin/python`, add `/root/.deno/bin` to its `PATH`, restart Streamlit, and retry the YouTube URL. `YTDLP_REMOTE_COMPONENTS=ejs:github` is a fallback for environments where the `yt-dlp-ejs` package is not available locally.
 
 The cookies should come from a session that has recently opened YouTube. If YouTube still blocks the VPS IP, use a proxy or a different VPS IP; cookies alone cannot bypass an IP-level block. Keep the cookie file private because it represents an authenticated browser session.
 

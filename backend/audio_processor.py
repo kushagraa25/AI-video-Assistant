@@ -176,6 +176,20 @@ def download_youtube_video(url: str, output_dir: str = DOWNLOADED_VIDEOS_DIR) ->
             return downloaded_file
 
     except Exception as e:
+        error_text = str(e)
+        error_lower = error_text.lower()
+        if "cookies are no longer valid" in error_lower:
+            raise RuntimeError(
+                "The configured YouTube cookies have expired or were rotated. "
+                "Export a fresh Netscape cookies file, replace the server file, "
+                "and restart the service."
+            ) from e
+        if "n challenge solving failed" in error_lower or "only images are available" in error_lower:
+            raise RuntimeError(
+                "yt-dlp could not solve YouTube's JavaScript challenge. "
+                "Install yt-dlp[default] and Deno in the same environment used by "
+                "the service, then set YTDLP_JS_RUNTIME=deno."
+            ) from e
         raise RuntimeError(f"yt-dlp could not download the YouTube video: {e}") from e
 
 def convert_to_wav(input_path: str) -> str:
