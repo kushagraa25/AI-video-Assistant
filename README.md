@@ -57,6 +57,9 @@ AI-Video-Assistant/
 │   ├── rag_engine.py               # ChromaDB vector store, embeddings & RAG Q&A chain
 │   └── pipeline.py                 # Central orchestrator connecting all backend steps
 │
+├── downloaded_videos/              # Dedicated folder for downloaded YouTube / local video files on server
+│   └── .gitkeep                    # Preserves directory structure in git
+│
 ├── frontend/                       # Web presentation layer
 │   ├── app.py                      # Modern two-panel Streamlit dashboard
 │   ├── styles.py                   # Custom UI styles, theme variables, and CSS
@@ -86,8 +89,11 @@ AI-Video-Assistant/
 ## ⚡ How It Works (Step-by-Step)
 
 ### 1. Ingestion (`backend/audio_processor.py`)
-- **YouTube Ingestion**: Uses `yt-dlp` to extract the best available audio stream without downloading heavy video files.
-- **Audio Standardization**: Audio is converted to a uniform **16kHz mono WAV** format via `pydub` / `ffmpeg`, which is the optimal sample rate for Whisper and Sarvam models.
+- **Server Video Downloads (`downloaded_videos/`)**:
+  - YouTube videos are downloaded directly into the server's `downloaded_videos/` folder with sanitized metadata templates (`%(title)s [%(id)s].mp4`).
+  - If a video already exists in the server folder, it is immediately reused to eliminate redundant downloads and bypass rate limits.
+  - You can also manually place downloaded videos (`.mp4`, `.webm`, `.mkv`, etc.) directly into `downloaded_videos/` via SFTP/curl/browser.
+- **Audio Standardization**: Audio from downloaded videos is converted to **16kHz mono WAV** format via `pydub` / `ffmpeg`, which is the optimal sample rate for Whisper and Sarvam models (with caching to avoid redundant conversions).
 - **Chunking Strategy**: Long recordings are split into 10-minute chunks with a minimum length threshold to prevent out-of-memory errors and handle large files efficiently.
 
 ### 2. Speech-to-Text Transcription (`backend/transcriber.py`)

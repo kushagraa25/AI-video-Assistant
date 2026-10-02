@@ -19,16 +19,36 @@ if PROJECT_ROOT not in sys.path:
 
 from backend.pipeline import VideoAssistantPipeline
 from backend.rag_engine import ask_question
+from backend.audio_processor import list_downloaded_videos, DOWNLOADED_VIDEOS_DIR
 
 def main():
     print("=" * 65)
     print("🎬 AI Video Assistant - Terminal CLI")
     print("=" * 65)
 
-    source = input("\nEnter YouTube URL or local file path: ").strip().strip("'").strip('"')
-    if not source:
-        print("❌ No source provided. Exiting.")
+    downloaded = list_downloaded_videos(DOWNLOADED_VIDEOS_DIR)
+    if downloaded:
+        print(f"\n📁 Videos available on server (`{DOWNLOADED_VIDEOS_DIR}`):")
+        for i, item in enumerate(downloaded, start=1):
+            print(f"  [{i}] {item['name']} ({item['size_mb']} MB)")
+        print()
+
+    prompt = "Enter choice number [1-N], YouTube URL, or local file path: " if downloaded else "Enter YouTube URL or local file path: "
+    user_input = input(prompt).strip().strip("'").strip('"')
+    if not user_input:
+        print("❌ No input provided. Exiting.")
         sys.exit(1)
+
+    if user_input.isdigit() and downloaded:
+        idx = int(user_input) - 1
+        if 0 <= idx < len(downloaded):
+            source = downloaded[idx]["path"]
+            print(f"Selected: {downloaded[idx]['name']}")
+        else:
+            print("❌ Invalid selection number. Exiting.")
+            sys.exit(1)
+    else:
+        source = user_input
 
     language = input("Language (english / hinglish) [default: english]: ").strip().lower() or "english"
 

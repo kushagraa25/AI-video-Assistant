@@ -18,6 +18,11 @@ if PROJECT_ROOT not in sys.path:
 from frontend.styles import CUSTOM_CSS
 from backend.pipeline import VideoAssistantPipeline
 from backend.rag_engine import ask_question
+from backend.audio_processor import (
+    list_downloaded_videos,
+    download_youtube_video,
+    DOWNLOADED_VIDEOS_DIR,
+)
 
 # ─── Page Configuration ─────────────────────────────────────────────────────────
 st.set_page_config(
@@ -74,18 +79,65 @@ with left_col:
         st.markdown('<span class="panel-label">📎 Video / Audio Source</span>', unsafe_allow_html=True)
         source_mode = st.radio(
             "Source Mode",
-            ["YouTube URL", "Upload Audio / Video"],
+            ["📁 Server Videos", "🔗 YouTube URL", "📤 Upload File"],
             horizontal=True,
             label_visibility="collapsed",
         )
 
         source = ""
-        if source_mode == "YouTube URL":
-            source = st.text_input(
+        if source_mode == "📁 Server Videos":
+            downloaded_files = list_downloaded_videos(DOWNLOADED_VIDEOS_DIR)
+            if downloaded_files:
+                video_names = [f"{item['name']} ({item['size_mb']} MB)" for item in downloaded_files]
+                selected_idx = st.selectbox(
+                    "Select Video from Server Folder",
+                    options=range(len(downloaded_files)),
+                    format_func=lambda i: video_names[i],
+                    label_visibility="collapsed",
+                )
+                chosen = downloaded_files[selected_idx]
+                source = chosen["path"]
+                st.caption(f"📁 **Selected:** `{chosen['name']}` ({chosen['size_mb']} MB)")
+                with st.expander("▶️ Preview Media", expanded=False):
+                    if chosen["name"].lower().endswith((".mp4", ".webm", ".mov", ".mkv", ".m4v")):
+                        st.video(chosen["path"])
+                    else:
+                        st.audio(chosen["path"])
+            else:
+                st.warning("⚠️ No videos in `downloaded_videos/` yet.")
+                st.caption(f"Server folder: `{DOWNLOADED_VIDEOS_DIR}`")
+
+            c_btn1, c_btn2 = st.columns([1, 1])
+            with c_btn1:
+                if st.button("🔄 Refresh", use_container_width=True):
+                    st.rerun()
+            with c_btn2:
+                with st.popover("ℹ️ Folder Info"):
+                    st.markdown(f"**Path on Server:**\n`{DOWNLOADED_VIDEOS_DIR}`")
+                    st.markdown("Drop or download any video files (`.mp4`, `.webm`, `.mkv`, etc.) directly into this folder on your server.")
+
+        elif source_mode == "🔗 YouTube URL":
+            youtube_url = st.text_input(
                 "source_input",
                 placeholder="https://youtube.com/watch?v=...",
                 label_visibility="collapsed",
             )
+            source = youtube_url.strip() if youtube_url else ""
+            st.caption("📥 YouTube videos are downloaded to `downloaded_videos/` on the server and reused.")
+
+            if st.button("⬇️ Download Video to Server", use_container_width=True):
+                if not source:
+                    st.warning("Please enter a YouTube URL first.")
+                else:
+                    with st.spinner("Downloading video to server folder..."):
+                        try:
+                            saved_path = download_youtube_video(source)
+                            st.success(f"✅ Saved on server: `{os.path.basename(saved_path)}`")
+                            time.sleep(1)
+                            st.rerun()
+                        except Exception as dl_err:
+                            st.error(f"Download failed: {dl_err}")
+
         else:
             uploaded_file = st.file_uploader(
                 "Upload audio/video",
@@ -93,13 +145,12 @@ with left_col:
                 label_visibility="collapsed",
             )
             if uploaded_file is not None:
-                save_dir = os.path.join(PROJECT_ROOT, "data", "downloads")
-                os.makedirs(save_dir, exist_ok=True)
-                save_path = os.path.join(save_dir, uploaded_file.name)
+                os.makedirs(DOWNLOADED_VIDEOS_DIR, exist_ok=True)
+                save_path = os.path.join(DOWNLOADED_VIDEOS_DIR, uploaded_file.name)
                 with open(save_path, "wb") as f:
                     f.write(uploaded_file.getbuffer())
                 source = save_path
-                st.caption(f"📁 Ready: `{uploaded_file.name}`")
+                st.caption(f"📁 Saved to `downloaded_videos/` & Ready: `{uploaded_file.name}`")
 
         st.markdown('<span class="panel-label" style="margin-top:0.75rem;display:block;">🌐 Language</span>', unsafe_allow_html=True)
         language = st.selectbox("lang", ["english", "hinglish"], index=0, label_visibility="collapsed")
@@ -152,8 +203,10 @@ with right_col:
     # ── Pipeline Execution ──────────────────────────────────────────────────
     if run_btn:
         if not source or not source.strip():
-            if source_mode == "YouTube URL":
+            if "YouTube" in source_mode:
                 st.error("Please provide a valid YouTube URL.")
+            elif "Server" in source_mode:
+                st.error("Please select a video from the server folder or place video files in 'downloaded_videos/'.")
             else:
                 st.error("Please upload an audio or video file.")
         else:

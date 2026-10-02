@@ -18,6 +18,10 @@ data/downloads/*
 data/vector_db/*
 !data/vector_db/.gitkeep
 
+# Downloaded videos on server
+downloaded_videos/*
+!downloaded_videos/.gitkeep
+
 # Legacy temporary folders
 downloades/
 downloads/

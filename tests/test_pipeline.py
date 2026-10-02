@@ -53,6 +53,32 @@ def test_nlp_on_sample_text():
     print(f"\nOpen Questions:\n{insights['open_questions']}")
     print("[OK] NLP test completed successfully!")
 
+def test_downloaded_videos_folder():
+    print("\nTesting downloaded videos folder connectivity...")
+    from backend.audio_processor import (
+        DOWNLOADED_VIDEOS_DIR,
+        list_downloaded_videos,
+        extract_youtube_video_id,
+        find_existing_downloaded_video,
+    )
+    assert os.path.isdir(DOWNLOADED_VIDEOS_DIR), "DOWNLOADED_VIDEOS_DIR must exist"
+    videos = list_downloaded_videos(DOWNLOADED_VIDEOS_DIR)
+    print(f"Found {len(videos)} video(s) in {DOWNLOADED_VIDEOS_DIR}:")
+    for v in videos:
+        print(f"  - {v['name']} ({v['size_mb']} MB)")
+    
+    # Test video ID extraction
+    sample_url = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+    vid = extract_youtube_video_id(sample_url)
+    assert vid == "jNQXAC9IVRw", f"Expected jNQXAC9IVRw but got {vid}"
+    print(f"[OK] Extracted video ID: {vid}")
+
+    existing = find_existing_downloaded_video(vid, DOWNLOADED_VIDEOS_DIR)
+    if existing:
+        print(f"[OK] Found existing downloaded video on server: {existing}")
+    print("[OK] Downloaded videos folder connectivity verified!")
+
 if __name__ == "__main__":
     test_imports()
     test_nlp_on_sample_text()
+    test_downloaded_videos_folder()
