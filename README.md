@@ -129,8 +129,17 @@ YouTube may challenge requests from VPS and datacenter IPs. The web UI does not 
 
 1. Export a fresh `youtube.com` cookies file in Netscape format from a private browser session.
 2. Copy it to the VPS, for example `/var/www/netaji/AI-video-Assistant/cookies.txt`, and restrict access with `chmod 600 cookies.txt`.
-3. Set `YOUTUBE_COOKIES_FILE=/var/www/netaji/AI-video-Assistant/cookies.txt` in the service environment.
-4. Restart the Streamlit service and retry the YouTube URL.
+3. Install the current yt-dlp extras and a JavaScript runtime for YouTube challenge solving:
+  ```bash
+  python -m pip install -U "yt-dlp[default]"
+  curl -fsSL https://deno.land/install.sh | sh
+  ```
+4. Set these variables in the service environment:
+  ```env
+  YOUTUBE_COOKIES_FILE=/var/www/netaji/AI-video-Assistant/cookies.txt
+  YTDLP_JS_RUNTIME=deno
+  ```
+5. Ensure the service user can find Deno in `PATH`, restart Streamlit, and retry the YouTube URL.
 
 The cookies should come from a session that has recently opened YouTube. If YouTube still blocks the VPS IP, use a proxy or a different VPS IP; cookies alone cannot bypass an IP-level block. Keep the cookie file private because it represents an authenticated browser session.
 

@@ -126,22 +126,21 @@ def download_youtube_video(url: str, output_dir: str = DOWNLOADED_VIDEOS_DIR) ->
         "merge_output_format": "mp4",
         "extractor_args": {
             "youtube": {
-                "player_client": ["android", "ios", "tv", "mweb", "web"],
-                "player_skip": ["configs", "webpage"],
+                "player_client": ["web"],
             }
-        },
-        "http_headers": {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/128.0.0.0 Safari/537.36"
-            ),
-            "Accept-Language": "en-US,en;q=0.9",
         },
     }
 
     if cookie_file:
         ydl_opts["cookiefile"] = cookie_file
+
+    js_runtime = os.getenv("YTDLP_JS_RUNTIME", "").strip()
+    if js_runtime:
+        ydl_opts["js_runtimes"] = {js_runtime: {}}
+
+    user_agent = os.getenv("YOUTUBE_USER_AGENT", "").strip()
+    if user_agent:
+        ydl_opts["http_headers"] = {"User-Agent": user_agent}
 
     proxy = os.getenv("YOUTUBE_PROXY") or os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
     if proxy:
