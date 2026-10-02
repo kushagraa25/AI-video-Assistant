@@ -1,7 +1,10 @@
 import os
 import re
 import yt_dlp
+from dotenv import load_dotenv
 from pydub import AudioSegment
+
+load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOWNLOAD_DIR = os.path.join(BASE_DIR, "data", "downloads")

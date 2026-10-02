@@ -124,6 +124,16 @@ AI-Video-Assistant/
 - Python 3.10 or higher
 - [FFmpeg](https://ffmpeg.org/download.html) installed and available in system PATH.
 
+### YouTube bot verification on a VPS
+YouTube may challenge requests from VPS and datacenter IPs. The web UI does not accept cookie uploads; configure cookies directly on the server instead:
+
+1. Export a fresh `youtube.com` cookies file in Netscape format from a private browser session.
+2. Copy it to the VPS, for example `/var/www/netaji/AI-video-Assistant/cookies.txt`, and restrict access with `chmod 600 cookies.txt`.
+3. Set `YOUTUBE_COOKIES_FILE=/var/www/netaji/AI-video-Assistant/cookies.txt` in the service environment.
+4. Restart the Streamlit service and retry the YouTube URL.
+
+The cookies should come from a session that has recently opened YouTube. If YouTube still blocks the VPS IP, use a proxy or a different VPS IP; cookies alone cannot bypass an IP-level block. Keep the cookie file private because it represents an authenticated browser session.
+
 ### 2. Configuration
 Create a `.env` file in the project root (or copy from `.env.example`):
 ```env
