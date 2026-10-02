@@ -73,7 +73,7 @@ def download_youtube_audio(url: str) -> str:
         "no_warnings": False,
         "extractor_args": {
             "youtube": {
-                "player_client": ["android", "ios", "mweb", "web"],
+                "player_client": ["android", "ios", "tv", "mweb", "web"],
                 "player_skip": ["configs", "webpage"],
             }
         },
