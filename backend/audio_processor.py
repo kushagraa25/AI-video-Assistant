@@ -199,6 +199,14 @@ def download_youtube_video(url: str, output_dir: str = DOWNLOADED_VIDEOS_DIR) ->
                 "Install yt-dlp[default] and Deno in the same environment used by "
                 "the service, then set YTDLP_JS_RUNTIME=deno."
             ) from e
+        if "http error 403" in error_lower or "403 forbidden" in error_lower:
+            raise RuntimeError(
+                "YouTube rejected the media request with HTTP 403. Export fresh "
+                "cookies from a browser session using this VPS public IP, and set "
+                "YOUTUBE_USER_AGENT to that browser's exact User-Agent. A cookie "
+                "file exported from another IP can authenticate metadata but still "
+                "fail when downloading the media stream."
+            ) from e
         raise RuntimeError(f"yt-dlp could not download the YouTube video: {e}") from e
 
 def convert_to_wav(input_path: str) -> str:
