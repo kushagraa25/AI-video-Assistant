@@ -90,8 +90,9 @@ def download_youtube_audio(url: str) -> str:
         except yt_dlp.utils.DownloadError as e:
             last_error = e
             message = str(e).lower()
-            if "private video" in message or "video unavailable" in message or "has been removed" in message:
-                break  # retrying with another client won't help
+            if any(text in message for text in ("private video", "is unavailable", "has been removed")):
+                # The video itself can't be downloaded; other clients won't help
+                raise RuntimeError(f"This video can't be downloaded (private, removed or wrong link). Details: {e}") from e
             print(f"Download with {clients or 'default'} client failed, trying the next one...")
 
     raise RuntimeError(

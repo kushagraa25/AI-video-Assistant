@@ -1,405 +1,242 @@
 """
-Frontend custom styles and UI layout components for Streamlit.
-Optimized for high-contrast, crystal-clear readability with black text.
+Custom CSS for the Streamlit UI.
+
+Most colours come from the theme in .streamlit/config.toml; this file only adds
+the fonts, spacing and the few custom elements (header, progress steps, empty state).
 """
 
 CUSTOM_CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap');
 
 :root {
-    --bg: #fbf9f6;
-    --surface: #ffffff;
-    --surface-2: #f2eee8;
-    --border: #d0c8be;
-    --border-strong: #8a7c6f;
-    --accent: #b85b24;
-    --accent-dark: #8e4215;
-    --accent-light: #faece3;
-    --accent-2: #2d6b5e;
-    --accent-2-light: #d6ebe6;
-    --text: #000000;
-    --text-muted: #111111;
-    --text-light: #222222;
-    --success: #1f6655;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
-    --shadow-md: 0 4px 16px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08);
+    --bg: #131211;
+    --surface: #1d1c1a;
+    --border: #34312d;
+    --text: #ece8e1;
+    --muted: #b0aaa1;
+    --faint: #8f897f;
+    --accent: #e58a4e;
+    --ok: #86b894;
+    --error: #ea7b72;
+    --serif: 'Newsreader', Georgia, serif;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
 }
 
-/* Global Font & High-Contrast Pure Black Text */
-html, body, [class*="css"], .stMarkdown, .stText, p, span, div, label, li, h1, h2, h3, h4, h5, h6 {
-    font-family: 'Inter', sans-serif !important;
-    color: #000000 !important;
-}
-
-.stApp {
-    background: var(--bg) !important;
-}
-
-.stApp::before {
-    content: '';
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background-image:
-        radial-gradient(ellipse at 10% 10%, rgba(184,91,36,0.05) 0%, transparent 55%),
-        radial-gradient(ellipse at 90% 90%, rgba(45,107,94,0.05) 0%, transparent 55%);
-    pointer-events: none;
-    z-index: 0;
-}
-
-[data-testid="stToolbar"]      { display: none !important; }
-[data-testid="stDecoration"]   { display: none !important; }
-[data-testid="stStatusWidget"] { display: none !important; }
-.stDeployButton                { display: none !important; }
-#MainMenu                      { visibility: hidden !important; }
-footer                         { display: none !important; }
-[data-testid="stSidebar"]      { display: none !important; }
-[data-testid="collapsedControl"]{ display: none !important; }
-[data-testid="stSkillsNudgeAnchor"],
-[data-testid="stSkillsNudge"],
-.stSkillsNudge                 { display: none !important; }
-[data-testid="InputInstructions"] { display: none !important; }
+/* ── Page frame ───────────────────────────────────────────── */
+[data-testid="stHeader"] { background: transparent; }
 
 .block-container {
-    padding-top: 1.5rem !important;
-    padding-left: 1.5rem !important;
-    padding-right: 1.5rem !important;
-    max-width: 100% !important;
+    max-width: 1180px;
+    padding-top: 2.5rem;
+    padding-bottom: 4rem;
 }
 
-.left-panel {
-    position: sticky;
-    top: 1rem;
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: 20px;
-    padding: 1.75rem 1.5rem;
-    box-shadow: var(--shadow-md);
-    height: fit-content;
-}
-
-.panel-logo {
-    font-family: 'Lora', serif;
-    font-size: 1.45rem;
-    font-weight: 700;
-    color: #000000 !important;
-    line-height: 1.3;
-    margin-bottom: 0.2rem;
-}
-
-.panel-logo .accent { color: var(--accent) !important; }
-
-.panel-sub {
-    font-size: 0.82rem;
-    font-weight: 600 !important;
-    color: #111111 !important;
-    margin-bottom: 1.25rem;
-}
-
-.panel-label {
-    font-size: 0.72rem;
-    font-weight: 800 !important;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: #000000 !important;
-    margin-bottom: 0.5rem;
-    display: block;
-}
-
-.stRadio {
-    margin: 0.15rem 0 0.85rem !important;
-}
-
-.stRadio [role="radiogroup"] {
-    gap: 0.45rem !important;
-    flex-wrap: wrap !important;
-}
-
-.stRadio [role="radio"] {
-    min-height: 2.35rem !important;
-    padding: 0.45rem 0.75rem !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 9px !important;
-    background: var(--surface-2) !important;
-}
-
-.stFileUploader {
-    margin-bottom: 0.85rem !important;
-}
-
-.stFileUploader section {
-    min-height: 7rem !important;
-    padding: 0.75rem !important;
-    border: 1px dashed var(--border-strong) !important;
-    border-radius: 10px !important;
-    background: var(--surface-2) !important;
-}
-
-/* High Contrast Input Fields */
-.stTextInput > div > div > input,
-.stSelectbox > div > div {
-    background: #ffffff !important;
-    border: 1.5px solid var(--border-strong) !important;
-    border-radius: 10px !important;
-    color: #000000 !important;
-    font-family: 'Inter', sans-serif !important;
-    font-size: 0.9rem !important;
-    font-weight: 500 !important;
-    transition: border-color 0.2s, box-shadow 0.2s !important;
-}
-
-/* Placeholder and dropdown menu text readable on the white background */
-.stTextInput input::placeholder {
-    color: #6b6158 !important;
-    opacity: 1 !important;
-}
-
-[data-baseweb="popover"] ul,
-[data-baseweb="popover"] li {
-    background: #ffffff !important;
-    color: #000000 !important;
-}
-
-[data-baseweb="popover"] li:hover,
-[data-baseweb="popover"] li[aria-selected="true"] {
-    background: var(--accent-light) !important;
-}
-
-.stTextInput > div > div > input:focus {
-    border-color: var(--accent) !important;
-    box-shadow: 0 0 0 3px rgba(184,91,36,0.18) !important;
-}
-
-/* Radio & Widget Labels in Black */
-label,
-.stRadio label,
-.stSelectbox label,
-.stTextInput label,
-.stFileUploader label,
-[data-testid="stWidgetLabel"] p,
-.stRadio div[role="radiogroup"] label div p {
-    color: #000000 !important;
-    font-weight: 700 !important;
-    font-size: 0.9rem !important;
-}
-
-/* Captions and subtitles in high-contrast black/dark */
-.stCaption, [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p {
-    color: #111111 !important;
-    font-weight: 600 !important;
-    font-size: 0.82rem !important;
-}
-
-.stButton > button {
-    background: var(--accent) !important;
-    color: #ffffff !important;
-    border: none !important;
-    border-radius: 10px !important;
-    font-family: 'Inter', sans-serif !important;
-    font-weight: 700 !important;
-    font-size: 0.92rem !important;
-    padding: 0.7rem 1.5rem !important;
-    transition: all 0.2s ease !important;
-    box-shadow: 0 2px 10px rgba(184,91,36,0.35) !important;
-    width: 100% !important;
-}
-
-.stButton > button:hover {
-    background: var(--accent-dark) !important;
-    color: #ffffff !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 6px 20px rgba(184,91,36,0.45) !important;
-}
-
-.card {
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: 18px;
-    padding: 1.4rem 1.6rem;
-    margin-bottom: 1rem;
-    box-shadow: var(--shadow-sm);
-    transition: box-shadow 0.25s ease, transform 0.25s ease;
-}
-
-.card:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-}
-
-.card-title {
-    font-size: 0.72rem;
-    font-weight: 800 !important;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: #000000 !important;
-    margin-bottom: 0.8rem;
+/* ── Header ───────────────────────────────────────────────── */
+.app-header {
     display: flex;
-    align-items: center;
-    gap: 0.4rem;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem 2rem;
+    padding-bottom: 1.25rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
 }
 
-.card-content,
-.card-content p,
-.card-content span,
-.card-content div,
-.card-content li {
-    font-size: 0.92rem;
-    line-height: 1.8;
-    color: #000000 !important;
-    font-weight: 500 !important;
+[data-testid="stMarkdownContainer"] .app-header .brand {
+    font-family: var(--serif);
+    font-size: 1.85rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    margin: 0;
 }
 
-.badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.25rem 0.8rem;
-    border-radius: 100px;
-    font-size: 0.74rem;
-    font-weight: 700 !important;
+.app-header .brand span { color: var(--accent); }
+
+[data-testid="stMarkdownContainer"] .app-header .tagline {
+    color: var(--muted);
+    font-size: 0.95rem;
+    max-width: 46ch;
+    margin: 0;
 }
 
-.badge-warm    { background: var(--accent-light);  color: var(--accent-dark) !important; border: 1.5px solid rgba(184,91,36,0.4); }
-.badge-green   { background: var(--accent-2-light); color: var(--accent-2) !important;   border: 1.5px solid rgba(45,107,94,0.35); }
-.badge-neutral { background: var(--surface-2);      color: #000000 !important;            border: 1.5px solid var(--border); }
+/* Hide Streamlit's "Press Enter to apply" hint: it overlaps the placeholder text.
+   The link is still picked up when Analyse is clicked. */
+[data-testid="InputInstructions"] { display: none; }
 
-.status-bar {
+/* Small uppercase label above a group of controls.
+   The [data-testid] prefix beats Streamlit's own paragraph font size. */
+[data-testid="stMarkdownContainer"] .section-label {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 0 0.35rem;
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+/* Dark text on the orange button keeps it readable (white on orange is too faint) */
+button[data-testid="stBaseButton-primary"],
+button[data-testid="stBaseButton-primary"] p {
+    color: #1a1310 !important;
+    font-weight: 600;
+}
+
+button:focus-visible {
+    outline: 2px solid var(--accent) !important;
+    outline-offset: 2px;
+}
+
+/* ── Pipeline steps ───────────────────────────────────────── */
+[data-testid="stMarkdownContainer"] .steps {
+    list-style: none;
+    margin: 1.5rem 0 0;
+    padding: 1rem 0 0 !important;
+    border-top: 1px solid var(--border);
+}
+
+[data-testid="stMarkdownContainer"] .steps li { margin: 0; }
+
+.step {
     display: flex;
     align-items: center;
     gap: 0.7rem;
-    padding: 0.55rem 0.85rem;
-    background: var(--surface-2);
-    border-radius: 9px;
-    margin: 0.28rem 0;
-    border: 1.5px solid var(--border);
-    font-size: 0.82rem;
-    font-weight: 600 !important;
-    color: #000000 !important;
+    padding: 0.35rem 0;
+    font-size: 0.9rem;
+    color: var(--faint);
 }
 
-.status-bar span {
-    color: #000000 !important;
-    font-weight: 600 !important;
+.step-marker {
+    flex: none;
+    width: 1.45rem;
+    height: 1.45rem;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    font-family: var(--mono);
+    font-size: 0.72rem;
 }
 
-.status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.dot-active  { background: var(--accent); box-shadow: 0 0 0 3px rgba(184,91,36,0.3); animation: pulse 1.5s infinite; }
-.dot-done    { background: var(--success); }
-.dot-pending { background: var(--border-strong); }
+.step-active { color: var(--text); }
+.step-active .step-marker {
+    border-color: var(--accent);
+    color: var(--accent);
+    animation: pulse 1.6s ease-in-out infinite;
+}
+
+.step-done { color: var(--muted); }
+.step-done .step-marker {
+    background: var(--ok);
+    border-color: var(--ok);
+    color: var(--bg);
+}
+
+.step-error { color: var(--error); }
+.step-error .step-marker { border-color: var(--error); }
 
 @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.35; }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(229, 138, 78, 0.45); }
+    50%      { box-shadow: 0 0 0 5px rgba(229, 138, 78, 0); }
 }
 
-.hero-title {
-    font-family: 'Lora', serif;
-    font-size: clamp(1.6rem, 3vw, 2.4rem);
-    font-weight: 700 !important;
-    line-height: 1.25;
-    color: #000000 !important;
+@media (prefers-reduced-motion: reduce) {
+    .step-active .step-marker { animation: none; }
+}
+
+/* ── Results ──────────────────────────────────────────────── */
+[data-testid="stMarkdownContainer"] .result-meta {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--faint);
     margin: 0;
 }
-.hero-title .accent { color: var(--accent) !important; }
 
-.hero-sub {
-    font-size: 0.92rem;
-    font-weight: 600 !important;
-    color: #111111 !important;
-    margin-top: 0.35rem;
+[data-testid="stMarkdownContainer"] .result-title {
+    font-family: var(--serif);
+    font-size: 2rem !important;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--text);
+    margin: 0.35rem 0 0 !important;
+    padding: 0 !important;
 }
 
-.chat-container {
-    background: var(--surface-2);
-    border: 1.5px solid var(--border);
-    border-radius: 16px;
-    padding: 1.2rem 1.4rem;
-    max-height: 420px;
-    overflow-y: auto;
-    margin-bottom: 1rem;
-}
-
-.chat-msg { margin-bottom: 1.1rem; display: flex; flex-direction: column; gap: 0.22rem; }
-
-.chat-label {
-    font-size: 0.68rem;
-    font-weight: 800 !important;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 0 0.2rem;
-}
-
-.chat-bubble {
-    display: inline-block;
-    padding: 0.75rem 1.1rem;
-    border-radius: 14px;
-    font-size: 0.9rem;
+/* Comfortable line length for the summary and insights */
+[data-baseweb="tab-panel"] [data-testid="stMarkdownContainer"] {
+    max-width: 72ch;
     line-height: 1.65;
-    max-width: 86%;
 }
 
-.user-label  { color: var(--accent) !important; }
-.bot-label   { color: var(--accent-2) !important; }
+[data-baseweb="tab-panel"] { padding-top: 0.75rem; }
 
-.user-bubble {
-    background: var(--accent);
-    color: #ffffff !important;
-    border-bottom-right-radius: 4px;
-    align-self: flex-end;
-    box-shadow: 0 2px 10px rgba(184,91,36,0.3);
-    font-weight: 500;
+[data-testid="stMarkdownContainer"] .section-title {
+    font-family: var(--serif);
+    font-size: 1.4rem !important;
+    font-weight: 600;
+    color: var(--text);
+    margin: 2.25rem 0 0.25rem !important;
+    padding: 1.75rem 0 0 !important;
+    border-top: 1px solid var(--border);
 }
 
-.bot-bubble {
-    background: var(--surface);
-    color: #000000 !important;
-    border: 1.5px solid var(--border);
-    border-bottom-left-radius: 4px;
-    align-self: flex-start;
-    box-shadow: var(--shadow-sm);
-    font-weight: 500;
+[data-testid="stMarkdownContainer"] .section-hint {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin: 0 0 0.75rem;
 }
 
-.transcript-box {
-    background: #ffffff;
-    border: 1.5px solid var(--border);
-    border-radius: 10px;
-    padding: 1.1rem;
-    font-size: 0.88rem;
-    line-height: 1.9;
-    max-height: 280px;
-    overflow-y: auto;
-    color: #000000 !important;
-    font-weight: 500 !important;
-    white-space: pre-wrap;
-    word-break: break-word;
+/* ── Chat ─────────────────────────────────────────────────── */
+/* Quiet avatars in theme colours instead of Streamlit's bright defaults */
+[data-testid="stChatMessageAvatarUser"],
+[data-testid="stChatMessageAvatarAssistant"] {
+    background: #2a2825 !important;
+    color: var(--muted) !important;
+    border: 1px solid var(--border);
 }
 
-/* Expanders */
-.streamlit-expanderHeader,
-[data-testid="stExpander"] summary,
-[data-testid="stExpander"] summary p,
-[data-testid="stExpander"] summary span {
-    color: #000000 !important;
-    font-weight: 700 !important;
+[data-testid="stChatMessageAvatarAssistant"] {
+    background: rgba(229, 138, 78, 0.14) !important;
+    color: var(--accent) !important;
+    border-color: rgba(229, 138, 78, 0.35);
 }
 
-/* Keep Streamlit's icon font (the global span font rule above would turn icons into text like "arrow_right") */
-[data-testid="stIconMaterial"],
-[data-testid="stExpander"] summary [data-testid="stIconMaterial"] {
-    font-family: 'Material Symbols Rounded' !important;
-    font-weight: 400 !important;
+[data-testid="stChatMessageAvatarUser"] *,
+[data-testid="stChatMessageAvatarAssistant"] * {
+    color: inherit !important;
+    fill: currentColor;
 }
 
-/* Markdown Containers All Black */
-[data-testid="stMarkdownContainer"] p,
-[data-testid="stMarkdownContainer"] span,
-[data-testid="stMarkdownContainer"] div,
-[data-testid="stMarkdownContainer"] li,
-[data-testid="stMarkdownContainer"] strong,
-[data-testid="stMarkdownContainer"] em {
-    color: #000000 !important;
+/* ── Empty state ──────────────────────────────────────────── */
+.empty {
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    padding: 2rem 2.25rem;
+    color: var(--muted);
+    line-height: 1.65;
+}
+
+[data-testid="stMarkdownContainer"] .empty h2 {
+    font-family: var(--serif);
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0 0 0.4rem;
+    padding: 0;
+}
+
+.empty ol { margin: 1rem 0 0; padding-left: 1.2rem; }
+.empty li { margin: 0.3rem 0; }
+.empty li strong { color: var(--text); font-weight: 500; }
+
+[data-testid="stMarkdownContainer"] .empty .note {
+    margin: 1.25rem 0 0;
+    font-size: 0.85rem;
+    color: var(--faint);
 }
 </style>
 """
