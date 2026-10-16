@@ -37,6 +37,11 @@ cd "$APP_DIR" || die "Cannot enter $APP_DIR"
 
 # ── 1. System packages ───────────────────────────────────────────────────────
 step "1/7 System packages"
+# A failed earlier WARP install can leave an apt source that breaks every 'apt-get update'
+if [ -f /etc/apt/sources.list.d/cloudflare-client.list ] && ! command -v warp-cli >/dev/null 2>&1; then
+    yellow "Removing leftover Cloudflare apt source from a failed earlier run"
+    rm -f /etc/apt/sources.list.d/cloudflare-client.list
+fi
 PACKAGES=(python3 python3-venv python3-pip ffmpeg curl unzip gnupg ca-certificates lsb-release)
 MISSING=()
 for pkg in "${PACKAGES[@]}"; do
@@ -140,12 +145,17 @@ fi
 # ── 6. Test YouTube download (uses the app's own download code) ──────────────
 step "6/7 Testing YouTube download"
 
-# Returns 0 if the app can download TEST_URL. $1 = optional proxy.
+# Exit code: 0 = download works, 1 = YouTube refused, 2 = the app itself failed to load.
+# $1 = optional proxy.
 test_youtube() {
     YOUTUBE_PROXY="${1:-}" TEST_URL="$TEST_URL" APP_DIR="$APP_DIR" "$VENV/bin/python" - <<'PY'
 import os, shutil, sys, tempfile
 sys.path.insert(0, os.environ["APP_DIR"])
-from backend import audio_processor as ap
+try:
+    from backend import audio_processor as ap
+except Exception as e:
+    print(f"APP ERROR: {type(e).__name__}: {e}")
+    sys.exit(2)
 ap.VIDEOS_DIR = tempfile.mkdtemp()  # fresh folder, so the cache can't fake a success
 try:
     path = ap.download_youtube_audio(os.environ["TEST_URL"])
@@ -165,22 +175,36 @@ set_env_proxy() {
 }
 
 YOUTUBE_OK=0
-if output="$(test_youtube "" 2>&1)"; then
-    echo "$output" | tail -1
+output="$(test_youtube "" 2>&1)"; code=$?
+echo "$output" | tail -1
+if [ "$code" -eq 2 ]; then
+    die "The app could not be loaded (see the error above) - this is not a YouTube problem. Fix it and run the script again."
+elif [ "$code" -eq 0 ]; then
     green "YouTube downloads work directly from this server - no proxy needed."
     YOUTUBE_OK=1
 else
-    echo "$output" | tail -1
     yellow "YouTube is blocking this server's IP. Setting up Cloudflare WARP as a free proxy..."
 
     if ! command -v warp-cli >/dev/null 2>&1; then
+        # Cloudflare only publishes packages for some releases; newer Ubuntu/Debian
+        # versions use the latest supported one (e.g. Ubuntu 25.10 -> 24.04 "noble")
         CODENAME="$(lsb_release -cs)"
+        if ! curl -fsI "https://pkg.cloudflareclient.com/dists/$CODENAME/InRelease" >/dev/null 2>&1; then
+            case "$(. /etc/os-release && echo "$ID")" in
+                debian) FALLBACK="bookworm" ;;
+                *)      FALLBACK="noble" ;;
+            esac
+            yellow "Cloudflare has no WARP package for '$CODENAME' yet - using '$FALLBACK' instead"
+            CODENAME="$FALLBACK"
+        fi
         curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg \
             | gpg --yes --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
         echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $CODENAME main" \
             > /etc/apt/sources.list.d/cloudflare-client.list
-        apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq cloudflare-warp \
-            || red "Could not install cloudflare-warp (is '$CODENAME' supported by Cloudflare?)"
+        if ! { apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq cloudflare-warp; }; then
+            red "Could not install cloudflare-warp."
+            rm -f /etc/apt/sources.list.d/cloudflare-client.list  # don't leave a broken apt source behind
+        fi
     fi
 
     if command -v warp-cli >/dev/null 2>&1; then

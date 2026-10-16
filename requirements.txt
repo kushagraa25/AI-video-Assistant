@@ -8,6 +8,7 @@ python-dotenv>=1.0.0
 yt-dlp[default]>=2025.1.0
 bgutil-ytdlp-pot-provider==2.0.2   # passes YouTube's bot check on servers (see README)
 pydub>=0.25.1
+audioop-lts>=0.2.1; python_version >= "3.13"   # Python 3.13 removed audioop, which pydub needs
 
 # Step 2 - Speech-to-text (Whisper runs locally; Sarvam is called over HTTP)
 openai-whisper>=20231117
