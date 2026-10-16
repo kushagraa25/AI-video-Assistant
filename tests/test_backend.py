@@ -61,6 +61,29 @@ class TestSummarizer(unittest.TestCase):
         self.assertEqual(clean_title(""), "Untitled Meeting")
 
 
+class TestReport(unittest.TestCase):
+
+    def test_pdf_report_with_unicode_and_lists(self):
+        from backend.report import build_pdf_report
+        result = {
+            "title": "Q3 “Launch” Review – ₹500 budget",
+            "summary": "Here’s the plan:\n\n- **Launch** on Oct 15\n  - nested item\n- Second *point*",
+            "action_items": "1. **Audit**\n   - Owner: Bob\n2. Docs",
+            "key_decisions": "### Decided\n\nShip it.",
+            "open_questions": "No open questions found.",
+            "transcript": "Alice: hello. Bob: hi. " * 300,  # long enough for several pages
+        }
+        pdf = build_pdf_report(result, {"source": "YouTube", "engine": "Whisper base", "words": 900})
+        self.assertTrue(pdf.startswith(b"%PDF"))
+        self.assertGreater(len(pdf), 5000)
+
+    def test_pdf_report_survives_odd_markdown(self):
+        from backend.report import build_pdf_report
+        result = {key: "<div>unclosed <b>html | table |\n|---|" for key in
+                  ("title", "summary", "action_items", "key_decisions", "open_questions", "transcript")}
+        self.assertTrue(build_pdf_report(result).startswith(b"%PDF"))
+
+
 class TestPipeline(unittest.TestCase):
 
     def test_runs_all_steps_and_reports_progress(self):

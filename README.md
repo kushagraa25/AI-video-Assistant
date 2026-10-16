@@ -28,6 +28,7 @@ flowchart LR
 | 4. RAG chat | `backend/rag_engine.py` | Transcript is split into 500-character chunks, embedded with `all-MiniLM-L6-v2` and stored in ChromaDB. For a question, the 4 most similar chunks are given to the LLM, which must answer only from them. |
 | Orchestration | `backend/pipeline.py` | Runs steps 1 → 2, then runs step 3's five LLM calls and step 4 **at the same time**. |
 | LLM client | `backend/llm_service.py` | Creates the Mistral client from `.env` settings. |
+| PDF report | `backend/report.py` | Converts the results (the LLM writes Markdown) to HTML and lays them out as a PDF with fpdf2, using a bundled Unicode font. |
 | UI | `app.py` + `styles.py` | Streamlit page: inputs on the left, results and chat on the right. |
 
 ---
@@ -44,7 +45,9 @@ AI-video-Assistant/
 │   ├── transcriber.py      # 2. WAV chunks       -> transcript
 │   ├── summarizer.py       # 3. transcript       -> title, summary, insights
 │   ├── rag_engine.py       # 4. transcript       -> Q&A chat
+│   ├── report.py           # results             -> downloadable PDF report
 │   └── llm_service.py      # Mistral LLM client
+├── assets/fonts/           # DejaVu Sans font used in the PDF (Unicode support)
 ├── tests/
 │   └── test_backend.py     # offline unit tests
 ├── downloaded_videos/      # downloaded YouTube audio (cache)

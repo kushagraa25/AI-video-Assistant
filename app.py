@@ -19,6 +19,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 from backend.audio_processor import AUDIO_DIR
 from backend.pipeline import run_pipeline
 from backend.rag_engine import ask_question
+from backend.report import build_pdf_report
 from styles import CUSTOM_CSS
 
 st.set_page_config(
@@ -49,7 +50,8 @@ STATUS_MESSAGES = {
     "title": "Writing the summary, insights and chat index...",
 }
 
-for key, default in {"result": None, "meta": {}, "chat_history": [], "pipeline_steps": {}}.items():
+for key, default in {"result": None, "meta": {}, "chat_history": [], "pipeline_steps": {},
+                     "report_pdf": None}.items():
     st.session_state.setdefault(key, default)
 
 
@@ -65,18 +67,6 @@ def steps_html(states: dict) -> str:
             f'<li class="step step-{state}"><span class="step-marker">{marker}</span>{label}</li>'
         )
     return f'<ol class="steps">{"".join(rows)}</ol>'
-
-
-def build_report(result: dict) -> str:
-    """Everything from the analysis as one Markdown document for download."""
-    return (
-        f"# {result['title']}\n\n"
-        f"## Summary\n\n{result['summary']}\n\n"
-        f"## Action items\n\n{result['action_items']}\n\n"
-        f"## Key decisions\n\n{result['key_decisions']}\n\n"
-        f"## Open questions\n\n{result['open_questions']}\n\n"
-        f"## Transcript\n\n{result['transcript']}\n"
-    )
 
 
 def slugify(text: str) -> str:
@@ -159,6 +149,7 @@ with right:
             )
         else:
             st.session_state.result = None
+            st.session_state.report_pdf = None
             st.session_state.chat_history = []
             st.session_state.pipeline_steps = {}
 
@@ -199,13 +190,23 @@ with right:
                 unsafe_allow_html=True,
             )
         with download_col:
-            st.download_button(
-                "Download report",
-                data=build_report(result),
-                file_name=f"{slugify(result['title'])}.md",
-                mime="text/markdown",
-                width="stretch",
-            )
+            # Build the PDF once per analysis (not on every chat message rerun)
+            if st.session_state.report_pdf is None:
+                try:
+                    st.session_state.report_pdf = build_pdf_report(result, meta)
+                except Exception as e:
+                    st.session_state.report_pdf = b""
+                    print(f"PDF report failed: {e}")
+            if st.session_state.report_pdf:
+                st.download_button(
+                    "Download PDF",
+                    data=st.session_state.report_pdf,
+                    file_name=f"{slugify(result['title'])}.pdf",
+                    mime="application/pdf",
+                    width="stretch",
+                )
+            else:
+                st.caption("The PDF report couldn't be created for this result.")
 
         summary_tab, actions_tab, decisions_tab, questions_tab, transcript_tab = st.tabs(
             ["Summary", "Action items", "Decisions", "Open questions", "Transcript"]
