@@ -99,9 +99,13 @@ def list_downloaded_videos(dir_path: str = DOWNLOADED_VIDEOS_DIR) -> list[dict]:
     return files
 
 def get_cookie_file() -> str | None:
-    """Return an optional server-side yt-dlp cookie file configured by path."""
+    """Return an optional server-side yt-dlp cookie file configured by path or default file."""
     cookie_path = os.getenv("YOUTUBE_COOKIES_FILE", "").strip()
     if not cookie_path:
+        for fname in ["cookies.txt", "cookie.txt", "coociee.txt"]:
+            candidate = os.path.join(BASE_DIR, fname)
+            if os.path.isfile(candidate) and os.path.getsize(candidate) > 0:
+                return candidate
         return None
 
     if not os.path.isabs(cookie_path):

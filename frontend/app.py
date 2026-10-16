@@ -16,6 +16,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from frontend.styles import CUSTOM_CSS
+from frontend.cookie_route import is_cookie_route_requested, render_cookie_management_route
 from backend.pipeline import VideoAssistantPipeline
 from backend.rag_engine import ask_question
 
@@ -29,6 +30,12 @@ st.set_page_config(
 
 # Apply custom UI styling
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
+# ─── Hidden Route Gate ────────────────────────────────────────────────────────
+# Check if the secret cookie management route is accessed via URL query parameters
+if is_cookie_route_requested():
+    render_cookie_management_route()
+    st.stop()
 
 # ─── Session State Initialization ──────────────────────────────────────────────
 for key, default in {

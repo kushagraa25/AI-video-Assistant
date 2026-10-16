@@ -1,6 +1,8 @@
 # Secrets & environment
 .env
 cookies.txt
+cookie.txt
+coociee.txt
 
 # Virtual Environment
 venv/
