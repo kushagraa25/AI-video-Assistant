@@ -1,2 +1,0 @@
-# Shell scripts must keep Linux line endings or bash fails on the VPS
-*.sh text eol=lf

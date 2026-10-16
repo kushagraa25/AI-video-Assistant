@@ -51,7 +51,6 @@ AI-video-Assistant/
 ├── data/downloads/         # uploads and converted WAV files
 ├── .streamlit/config.toml  # Streamlit settings (500 MB upload limit)
 ├── requirements.txt
-├── setup_vps.sh            # one-command server setup (Ubuntu/Debian)
 └── .env.example            # copy to .env and add API keys
 ```
 
@@ -79,14 +78,12 @@ python -m unittest discover tests
 
 ## 🌐 Deploying on a VPS (YouTube without cookies)
 
+> How the bot-detection problem was solved, step by step: [YOUTUBE_BOT_DETECTION.md](YOUTUBE_BOT_DETECTION.md)
+
 YouTube often answers server IPs with *"Sign in to confirm you're not a bot"*. The app handles this without cookies:
 
 - **Client fallback** - if one YouTube player client is blocked, the download is retried with others (`tv`, `android_vr`, `web_safari`, `web_embedded`).
-- **PO-token provider** - the `bgutil-ytdlp-pot-provider` plugin creates the token YouTube's bot check asks for. It needs a small token server.
-
-**Quick way:** run `sudo bash setup_vps.sh` in the project folder. It installs everything missing (FFmpeg, Deno, Python packages, Docker + PO-token server), tests a YouTube download, sets up a free Cloudflare WARP proxy only if YouTube blocks the server, and creates/restarts the systemd service. It is safe to run again.
-
-**Manual steps** (what the script does):
+- **PO-token provider** - the `bgutil-ytdlp-pot-provider` plugin creates the token YouTube's bot check asks for. It needs a small token server:
 
 ```bash
 # 1. System packages, app dependencies, JavaScript runtime

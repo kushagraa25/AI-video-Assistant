@@ -149,6 +149,23 @@ footer                         { display: none !important; }
     transition: border-color 0.2s, box-shadow 0.2s !important;
 }
 
+/* Placeholder and dropdown menu text readable on the white background */
+.stTextInput input::placeholder {
+    color: #6b6158 !important;
+    opacity: 1 !important;
+}
+
+[data-baseweb="popover"] ul,
+[data-baseweb="popover"] li {
+    background: #ffffff !important;
+    color: #000000 !important;
+}
+
+[data-baseweb="popover"] li:hover,
+[data-baseweb="popover"] li[aria-selected="true"] {
+    background: var(--accent-light) !important;
+}
+
 .stTextInput > div > div > input:focus {
     border-color: var(--accent) !important;
     box-shadow: 0 0 0 3px rgba(184,91,36,0.18) !important;

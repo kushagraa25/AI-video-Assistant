@@ -12,3 +12,12 @@ hideWelcomeMessage = true
 
 [client]
 toolbarMode = "minimal"
+
+# Always use the light theme (matches styles.py). Without this, Streamlit follows the
+# browser's dark mode and draws white text in the light input boxes and a dark dropdown.
+[theme]
+base = "light"
+primaryColor = "#b85b24"
+backgroundColor = "#fbf9f6"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#000000"
