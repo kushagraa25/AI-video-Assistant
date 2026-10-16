@@ -19,8 +19,15 @@ load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 from backend.audio_processor import AUDIO_DIR
 from backend.pipeline import run_pipeline
 from backend.rag_engine import ask_question
-from backend.report import build_pdf_report
 from styles import CUSTOM_CSS
+
+# The PDF report is optional: if its packages are missing, only the download button is affected
+try:
+    from backend.report import build_pdf_report
+    PDF_ERROR = None
+except ImportError as e:
+    build_pdf_report = None
+    PDF_ERROR = f"PDF download unavailable ({e}). Run: pip install -r requirements.txt"
 
 st.set_page_config(
     page_title="Meeting Assistant",
@@ -191,13 +198,17 @@ with right:
             )
         with download_col:
             # Build the PDF once per analysis (not on every chat message rerun)
-            if st.session_state.report_pdf is None:
+            if build_pdf_report is None:
+                st.caption(PDF_ERROR)
+            elif st.session_state.report_pdf is None:
                 try:
                     st.session_state.report_pdf = build_pdf_report(result, meta)
                 except Exception as e:
                     st.session_state.report_pdf = b""
                     print(f"PDF report failed: {e}")
-            if st.session_state.report_pdf:
+            if build_pdf_report is None:
+                pass  # the reason is already shown above
+            elif st.session_state.report_pdf:
                 st.download_button(
                     "Download PDF",
                     data=st.session_state.report_pdf,
