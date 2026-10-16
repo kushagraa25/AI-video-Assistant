@@ -368,6 +368,13 @@ label,
     font-weight: 700 !important;
 }
 
+/* Keep Streamlit's icon font (the global span font rule above would turn icons into text like "arrow_right") */
+[data-testid="stIconMaterial"],
+[data-testid="stExpander"] summary [data-testid="stIconMaterial"] {
+    font-family: 'Material Symbols Rounded' !important;
+    font-weight: 400 !important;
+}
+
 /* Markdown Containers All Black */
 [data-testid="stMarkdownContainer"] p,
 [data-testid="stMarkdownContainer"] span,

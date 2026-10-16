@@ -1,319 +1,153 @@
+"""
+Step 1 - Audio: turn a YouTube URL or a local audio/video file into
+16 kHz mono WAV chunks that the speech-to-text step can process.
+"""
+
+import importlib.util
 import os
 import re
 import shutil
+
 import yt_dlp
-from dotenv import load_dotenv
-
-load_dotenv()
-
-ffmpeg_binary = shutil.which("ffmpeg") or "/usr/bin/ffmpeg"
-if os.path.isfile(ffmpeg_binary):
-    ffmpeg_directory = os.path.dirname(ffmpeg_binary)
-    if ffmpeg_directory not in os.getenv("PATH", "").split(os.pathsep):
-        os.environ["PATH"] = ffmpeg_directory + os.pathsep + os.getenv("PATH", "")
-
 from pydub import AudioSegment
 
-if os.path.isfile(ffmpeg_binary):
-    AudioSegment.converter = ffmpeg_binary
-    AudioSegment.ffmpeg = ffmpeg_binary
-
-ffprobe_binary = shutil.which("ffprobe") or "/usr/bin/ffprobe"
-if os.path.isfile(ffprobe_binary):
-    AudioSegment.ffprobe = ffprobe_binary
-
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DOWNLOAD_DIR = os.path.join(BASE_DIR, "data", "downloads")
-DOWNLOADED_VIDEOS_DIR = os.path.join(BASE_DIR, "downloaded_videos")
-os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-os.makedirs(DOWNLOADED_VIDEOS_DIR, exist_ok=True)
+VIDEOS_DIR = os.path.join(BASE_DIR, "downloaded_videos")  # downloaded YouTube audio
+AUDIO_DIR = os.path.join(BASE_DIR, "data", "downloads")    # uploads + converted WAV files
+os.makedirs(VIDEOS_DIR, exist_ok=True)
+os.makedirs(AUDIO_DIR, exist_ok=True)
 
-SUPPORTED_MEDIA_EXTENSIONS = (
-    ".mp4", ".mkv", ".webm", ".avi", ".mov", ".flv", ".wmv", ".m4v",
-    ".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac"
-)
+CHUNK_MINUTES = 10
 
-def sanitize_filename(name: str) -> str:
-    """Sanitize a string to be a safe filename across operating systems."""
-    return re.sub(r'[\\/*?:"<>|]', "", name).strip()
+# pydub needs ffmpeg; on servers it is often missing from the service's PATH
+_ffmpeg = shutil.which("ffmpeg") or "/usr/bin/ffmpeg"
+if os.path.isfile(_ffmpeg):
+    os.environ["PATH"] = os.path.dirname(_ffmpeg) + os.pathsep + os.environ.get("PATH", "")
+    AudioSegment.converter = _ffmpeg
+
+# YouTube player clients to try in order. If YouTube challenges one client
+# ("confirm you're not a bot" / HTTP 403), another one often still works.
+# None = yt-dlp's default clients.
+PLAYER_CLIENTS = [None, ["tv_simply", "tv"], ["android_vr"], ["web_safari", "mweb"], ["web_embedded"]]
+
+
+# ── YouTube download ───────────────────────────────────────────────────────────
 
 def extract_youtube_video_id(url: str) -> str | None:
-    """Extract YouTube 11-character video ID from common URL formats."""
-    patterns = [
-        r"(?:v=|\/)([0-9A-Za-z_-]{11})(?:[&?#/]|$)",
-        r"youtu\.be\/([0-9A-Za-z_-]{11})(?:[&?#/]|$)",
-        r"youtube\.com\/shorts\/([0-9A-Za-z_-]{11})(?:[&?#/]|$)",
-        r"youtube\.com\/embed\/([0-9A-Za-z_-]{11})(?:[&?#/]|$)",
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, url)
-        if match:
-            return match.group(1)
+    """Returns the 11-character video ID from any common YouTube URL format."""
+    match = re.search(r"(?:v=|youtu\.be/|shorts/|embed/)([0-9A-Za-z_-]{11})", url)
+    return match.group(1) if match else None
+
+
+def find_downloaded_file(video_id: str) -> str | None:
+    """Returns a previously downloaded file for this video, so it isn't downloaded twice."""
+    for name in os.listdir(VIDEOS_DIR):
+        if f"[{video_id}]" in name and not name.endswith(".part"):
+            return os.path.join(VIDEOS_DIR, name)
     return None
 
-def find_existing_downloaded_video(video_id: str, search_dir: str = DOWNLOADED_VIDEOS_DIR) -> str | None:
-    """
-    Checks if a video containing the given video ID already exists on the server.
-    Searches both DOWNLOADED_VIDEOS_DIR and DOWNLOAD_DIR.
-    Returns the absolute path if found, or None.
-    """
-    if not video_id:
-        return None
-    for target_dir in [search_dir, DOWNLOAD_DIR]:
-        if not os.path.exists(target_dir):
-            continue
-        for fname in os.listdir(target_dir):
-            if fname.lower().endswith(SUPPORTED_MEDIA_EXTENSIONS):
-                if video_id in fname:
-                    full_path = os.path.join(target_dir, fname)
-                    if os.path.isfile(full_path) and os.path.getsize(full_path) > 1024:
-                        return full_path
-    return None
 
-def list_downloaded_videos(dir_path: str = DOWNLOADED_VIDEOS_DIR) -> list[dict]:
-    """
-    Lists all video and audio files available in the server's downloaded_videos directory.
-    Returns a sorted list of dicts: [{'name': ..., 'path': ..., 'size_mb': ..., 'modified': ...}]
-    """
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path, exist_ok=True)
-        return []
-
-    files = []
-    for f in os.listdir(dir_path):
-        full_path = os.path.join(dir_path, f)
-        if os.path.isfile(full_path) and f.lower().endswith(SUPPORTED_MEDIA_EXTENSIONS):
-            # Skip hidden files or temporary 16k wav / chunk wav files
-            if f.startswith(".") or f.endswith("_16k.wav") or "_chunk_" in f:
-                continue
-            stat = os.stat(full_path)
-            size_mb = stat.st_size / (1024 * 1024)
-            files.append({
-                "name": f,
-                "path": full_path,
-                "size_mb": round(size_mb, 2),
-                "modified": stat.st_mtime,
-            })
-
-    files.sort(key=lambda x: x["modified"], reverse=True)
-    return files
-
-def get_cookie_file() -> str | None:
-    """Return an optional server-side yt-dlp cookie file configured by path or default file."""
-    cookie_path = os.getenv("YOUTUBE_COOKIES_FILE", "").strip()
-    if not cookie_path:
-        for fname in ["cookies.txt", "cookie.txt", "coociee.txt"]:
-            candidate = os.path.join(BASE_DIR, fname)
-            if os.path.isfile(candidate) and os.path.getsize(candidate) > 0:
-                return candidate
-        return None
-
-    if not os.path.isabs(cookie_path):
-        cookie_path = os.path.join(BASE_DIR, cookie_path)
-
-    if not os.path.isfile(cookie_path) or os.path.getsize(cookie_path) == 0:
-        raise FileNotFoundError(
-            f"YOUTUBE_COOKIES_FILE does not point to a readable cookie file: {cookie_path}"
-        )
-    return cookie_path
-
-def download_youtube_video(url: str, output_dir: str = DOWNLOADED_VIDEOS_DIR) -> str:
-    """
-    Downloads a video from YouTube directly onto the server into `downloaded_videos`.
-    If the video has already been downloaded to the server, reuses it immediately.
-    Returns the full path to the downloaded video file.
-    """
-    os.makedirs(output_dir, exist_ok=True)
-
-    # 1. Check if already downloaded on server
-    video_id = extract_youtube_video_id(url)
-    if video_id:
-        existing_path = find_existing_downloaded_video(video_id, output_dir)
-        if existing_path:
-            print(f"Found existing downloaded video on server: {existing_path}")
-            return existing_path
-
-    cookie_file = get_cookie_file()
-    output_template = os.path.join(output_dir, "%(title).100B [%(id)s].%(ext)s")
-
-    ydl_opts = {
-        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best",
-        "outtmpl": output_template,
-        "windowsfilenames": True,
+def _ytdlp_options() -> dict:
+    options = {
+        "format": "bestaudio[ext=m4a]/bestaudio/best",  # audio is all we need
+        "outtmpl": os.path.join(VIDEOS_DIR, "%(title).100B [%(id)s].%(ext)s"),
         "restrictfilenames": True,
-        "quiet": False,
-        "no_warnings": False,
-        "merge_output_format": "mp4",
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["web"],
-            }
-        },
+        "windowsfilenames": True,
     }
 
-    if cookie_file:
-        ydl_opts["cookiefile"] = cookie_file
+    # YouTube requires a JavaScript runtime (Deno or Node.js) to unlock its media formats
+    for runtime in ("deno", "node"):
+        path = shutil.which(runtime) or shutil.which(runtime, path=os.path.expanduser("~/.deno/bin"))
+        if path:
+            options["js_runtimes"] = {runtime: {"path": path}}
+            if importlib.util.find_spec("yt_dlp_ejs") is None:
+                options["remote_components"] = ["ejs:github"]  # fetch the challenge solver
+            break
 
-    deno_bin_dir = "/root/.deno/bin"
-    if os.path.isdir(deno_bin_dir) and deno_bin_dir not in os.getenv("PATH", "").split(os.pathsep):
-        os.environ["PATH"] = deno_bin_dir + os.pathsep + os.getenv("PATH", "")
+    # Optional: route YouTube traffic through another IP if YouTube blocks the server
+    if os.getenv("YOUTUBE_PROXY"):
+        options["proxy"] = os.getenv("YOUTUBE_PROXY")
 
-    js_runtime = os.getenv("YTDLP_JS_RUNTIME", "").strip()
-    if not js_runtime and shutil.which("deno"):
-        js_runtime = "deno"
-    if js_runtime:
-        ydl_opts["js_runtimes"] = {js_runtime: {}}
+    return options
 
-    remote_components = os.getenv("YTDLP_REMOTE_COMPONENTS", "").strip()
-    if not remote_components and js_runtime == "deno":
-        remote_components = "ejs:github"
-    if remote_components:
-        ydl_opts["remote_components"] = [
-            component.strip()
-            for component in remote_components.split(",")
-            if component.strip()
-        ]
 
-    user_agent = os.getenv("YOUTUBE_USER_AGENT", "").strip()
-    if user_agent:
-        ydl_opts["http_headers"] = {"User-Agent": user_agent}
+def download_youtube_audio(url: str) -> str:
+    """Downloads the audio track of a YouTube video and returns the file path."""
+    video_id = extract_youtube_video_id(url)
+    if video_id and (existing := find_downloaded_file(video_id)):
+        print(f"Using already downloaded file: {existing}")
+        return existing
 
-    proxy = os.getenv("YOUTUBE_PROXY") or os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
-    if proxy:
-        ydl_opts["proxy"] = proxy
+    last_error = None
+    for clients in PLAYER_CLIENTS:
+        options = _ytdlp_options()
+        if clients:
+            options["extractor_args"] = {"youtube": {"player_client": clients}}
+        try:
+            with yt_dlp.YoutubeDL(options) as ydl:
+                info = ydl.extract_info(url, download=True)
+                return info["requested_downloads"][0]["filepath"]
+        except yt_dlp.utils.DownloadError as e:
+            last_error = e
+            message = str(e).lower()
+            if "private video" in message or "video unavailable" in message or "has been removed" in message:
+                break  # retrying with another client won't help
+            print(f"Download with {clients or 'default'} client failed, trying the next one...")
 
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            downloaded_file = ydl.prepare_filename(info)
-            if not os.path.exists(downloaded_file):
-                base_without_ext = os.path.splitext(downloaded_file)[0]
-                for ext in [".mp4", ".mkv", ".webm"]:
-                    candidate = f"{base_without_ext}{ext}"
-                    if os.path.exists(candidate):
-                        downloaded_file = candidate
-                        break
-            if not os.path.exists(downloaded_file) and info.get("id"):
-                found = find_existing_downloaded_video(info["id"], output_dir)
-                if found:
-                    downloaded_file = found
+    raise RuntimeError(
+        "YouTube blocked the download. On a VPS, make sure the PO-token server is running "
+        "(see README) or set YOUTUBE_PROXY. You can also download the video yourself and "
+        f"use 'Upload file'. Details: {last_error}"
+    )
 
-            if not os.path.exists(downloaded_file):
-                raise FileNotFoundError(f"Could not locate downloaded video in {output_dir}")
 
-            return downloaded_file
-
-    except Exception as e:
-        error_text = str(e)
-        error_lower = error_text.lower()
-        if "cookies are no longer valid" in error_lower:
-            raise RuntimeError(
-                "The configured YouTube cookies have expired or were rotated. "
-                "Export a fresh Netscape cookies file, replace the server file, "
-                "and restart the service."
-            ) from e
-        if "n challenge solving failed" in error_lower or "only images are available" in error_lower:
-            raise RuntimeError(
-                "yt-dlp could not solve YouTube's JavaScript challenge. "
-                "Install yt-dlp[default] and Deno in the same environment used by "
-                "the service, then set YTDLP_JS_RUNTIME=deno."
-            ) from e
-        if "http error 403" in error_lower or "403 forbidden" in error_lower:
-            raise RuntimeError(
-                "YouTube rejected the media request with HTTP 403. Export fresh "
-                "cookies from a browser session using this VPS public IP, and set "
-                "YOUTUBE_USER_AGENT to that browser's exact User-Agent. A cookie "
-                "file exported from another IP can authenticate metadata but still "
-                "fail when downloading the media stream."
-            ) from e
-        raise RuntimeError(f"yt-dlp could not download the YouTube video: {e}") from e
+# ── Audio conversion ───────────────────────────────────────────────────────────
 
 def convert_to_wav(input_path: str) -> str:
-    """Convert any local audio/video file to 16kHz mono WAV format in the downloads directory."""
+    """Converts any audio/video file to 16 kHz mono WAV (the format speech models expect)."""
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Input file not found: {input_path}")
 
-    base_name = sanitize_filename(os.path.splitext(os.path.basename(input_path))[0])
-    output_path = os.path.join(DOWNLOAD_DIR, f"{base_name}_16k.wav")
+    name = re.sub(r'[\\/*?:"<>|]', "", os.path.splitext(os.path.basename(input_path))[0])
+    wav_path = os.path.join(AUDIO_DIR, f"{name}_16k.wav")
 
-    # Reuse existing 16k WAV if already converted and up to date
-    if os.path.exists(output_path) and os.path.getsize(output_path) > 1024:
-        try:
-            if os.path.getmtime(output_path) >= os.path.getmtime(input_path):
-                return output_path
-        except OSError:
-            pass
+    # Reuse an earlier conversion if it is newer than the source file
+    if os.path.exists(wav_path) and os.path.getmtime(wav_path) >= os.path.getmtime(input_path):
+        return wav_path
 
     audio = AudioSegment.from_file(input_path)
-    audio = audio.set_channels(1).set_frame_rate(16000)
-    audio.export(output_path, format="wav")
-    return output_path
+    audio.set_channels(1).set_frame_rate(16000).export(wav_path, format="wav").close()
+    return wav_path
 
-def chunk_audio(wav_path: str, chunk_minutes: int = 10) -> list[str]:
-    """
-    Splits a WAV file into chunks of chunk_minutes (default 10 mins).
-    Outputs chunk files in DOWNLOAD_DIR.
-    Guarantees no empty or micro (<1s) chunks are generated.
-    """
+
+def split_into_chunks(wav_path: str, chunk_minutes: int = CHUNK_MINUTES) -> list[str]:
+    """Splits long audio into fixed-length chunks so memory use stays low."""
     audio = AudioSegment.from_file(wav_path)
-    total_len = len(audio)
-
-    if total_len == 0:
-        return []
-
     chunk_ms = chunk_minutes * 60 * 1000
-    base_name = os.path.splitext(os.path.basename(wav_path))[0]
-
-    # If audio is shorter than chunk size, return the file itself as 1 chunk
-    if total_len <= chunk_ms:
+    if len(audio) <= chunk_ms:
         return [wav_path]
 
     chunks = []
-    starts = list(range(0, total_len, chunk_ms))
-
-    for i, start in enumerate(starts):
-        end = min(start + chunk_ms, total_len)
-
-        # If remaining fragment at end is < 2 seconds, absorb it into current chunk
-        if i == len(starts) - 2 and (total_len - end) < 2000:
-            end = total_len
-
-        chunk = audio[start:end]
-        if len(chunk) < 800:  # skip any fragment shorter than 0.8s
+    base = os.path.splitext(wav_path)[0]
+    for i, start in enumerate(range(0, len(audio), chunk_ms)):
+        piece = audio[start:start + chunk_ms]
+        if len(piece) < 1000:  # skip a tiny leftover tail (< 1 second)
             continue
-
-        chunk_path = os.path.join(DOWNLOAD_DIR, f"{base_name}_chunk_{i}.wav")
-        chunk.export(chunk_path, format="wav")
+        chunk_path = f"{base}_chunk_{i}.wav"
+        piece.export(chunk_path, format="wav").close()
         chunks.append(chunk_path)
-
-        if end == total_len:
-            break
-
-    return chunks if chunks else [wav_path]
-
-def process_input(source: str) -> list[str]:
-    """Processes either a YouTube URL or a local downloaded video/audio file path into audio chunks."""
-    source_clean = source.strip().strip("'").strip('"')
-    if source_clean.startswith("http://") or source_clean.startswith("https://"):
-        print("Detected YouTube URL. Downloading video to server folder 'downloaded_videos'...")
-        downloaded_video_path = download_youtube_video(source_clean)
-        print(f"Downloaded video on server: {downloaded_video_path}")
-        print("Converting downloaded video to WAV...")
-        wav_path = convert_to_wav(downloaded_video_path)
-    else:
-        print(f"Detected local file ({source_clean}). Converting to WAV...")
-        wav_path = convert_to_wav(source_clean)
-
-    print("Chunking audio...")
-    chunks = chunk_audio(wav_path)
-    print(f"Audio ready — {len(chunks)} chunk(s) created.")
     return chunks
 
-def cleanup_chunks(chunks: list[str]):
-    """Helper to remove temporary chunk files after processing to save disk space."""
-    for chunk in chunks:
-        if os.path.exists(chunk):
-            try:
-                os.remove(chunk)
-            except OSError:
-                pass
+
+def prepare_audio(source: str) -> list[str]:
+    """YouTube URL or local file -> list of WAV chunk paths."""
+    source = source.strip().strip("'\"")
+    if source.startswith(("http://", "https://")):
+        print("Downloading audio from YouTube...")
+        source = download_youtube_audio(source)
+
+    print("Converting to 16 kHz WAV...")
+    wav_path = convert_to_wav(source)
+    chunks = split_into_chunks(wav_path)
+    print(f"Audio ready - {len(chunks)} chunk(s).")
+    return chunks

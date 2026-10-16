@@ -1,196 +1,120 @@
 # 🎬 AI Video & Meeting Assistant
 
-An intelligent, production-grade AI Meeting and Video Assistant that ingests YouTube videos or local recordings, generates accurate speech-to-text transcripts across languages (English & Hinglish), synthesizes executive summaries and action items using LLMs, and powers an interactive **Retrieval-Augmented Generation (RAG)** chat over the meeting contents.
+Paste a YouTube link or upload a recording, and the app will:
+
+1. **Transcribe** the speech (English with Whisper, Hinglish with Sarvam AI)
+2. **Summarize** it and extract **action items, key decisions and open questions** (Mistral LLM)
+3. Let you **chat with the video** - answers come only from what was actually said (RAG)
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ How it works
 
 ```mermaid
-flowchart TD
-    subgraph INGESTION["1. Audio Ingestion & Preprocessing"]
-        A["Input: YouTube URL / Local Media"] --> B["yt-dlp / FFmpeg"]
-        B --> C["Normalize to 16kHz Mono WAV"]
-        C --> D["Audio Chunking (10-min slices)"]
-    end
-
-    subgraph ASR["2. Speech-to-Text (ASR) Engine"]
-        D --> E{"Language Selection"}
-        E -->|"English"| F["OpenAI Whisper (Local CPU/CUDA)"]
-        E -->|"Hinglish / Hindi"| G["Sarvam AI Translate API (Cloud)"]
-        F --> H["Consolidated Meeting Transcript"]
-        G --> H
-    end
-
-    subgraph INTELLIGENCE["3. Parallel NLP & Extraction"]
-        H --> I["Title Generator (Mistral AI)"]
-        H --> J["Map-Reduce Summarizer (Mistral AI)"]
-        H --> K["Insight Extractor: Tasks, Decisions, Questions"]
-    end
-
-    subgraph RAG["4. Vector DB & RAG Pipeline"]
-        H --> L["Recursive Character Splitter (500 chars, 50 overlap)"]
-        L --> M["HuggingFace Embeddings (all-MiniLM-L6-v2)"]
-        M --> N["ChromaDB Vector Store (Persistent)"]
-        N --> O["Retriever (Top-k Similarity Search)"]
-        O --> P["Context-Grounded LLM Q&A Chain"]
-    end
-
-    subgraph PRESENTATION["5. Presentation Layer"]
-        I & J & K --> Q["Streamlit Web UI / Terminal CLI"]
-        P <--> Q
-    end
+flowchart LR
+    A["YouTube URL<br/>or uploaded file"] --> B["1. Audio<br/>download + 16 kHz WAV"]
+    B --> C["2. Speech-to-text<br/>Whisper / Sarvam AI"]
+    C --> D["3. Summarizer<br/>Mistral LLM"]
+    C --> E["4. RAG index<br/>embeddings + ChromaDB"]
+    D --> F["Streamlit UI"]
+    E --> F
 ```
+
+| Step | File | What it does |
+|---|---|---|
+| 1. Audio | `backend/audio_processor.py` | Downloads only the audio from YouTube (yt-dlp), converts it to 16 kHz mono WAV (the format speech models expect) and splits long recordings into 10-minute chunks. |
+| 2. Speech-to-text | `backend/transcriber.py` | **English:** OpenAI Whisper runs locally - free and private. **Hinglish:** audio is cut into 25-second pieces and sent to Sarvam AI in parallel, which transcribes and translates to English. |
+| 3. Summarizer | `backend/summarizer.py` | Mistral LLM writes the title, summary, action items, decisions and questions. Long transcripts use **Map-Reduce**: summarize each part in parallel, then combine. |
+| 4. RAG chat | `backend/rag_engine.py` | Transcript is split into 500-character chunks, embedded with `all-MiniLM-L6-v2` and stored in ChromaDB. For a question, the 4 most similar chunks are given to the LLM, which must answer only from them. |
+| Orchestration | `backend/pipeline.py` | Runs steps 1 → 2, then runs step 3's five LLM calls and step 4 **at the same time**. |
+| LLM client | `backend/llm_service.py` | Creates the Mistral client from `.env` settings. |
+| UI | `app.py` + `styles.py` | Streamlit page: inputs on the left, results and chat on the right. |
 
 ---
 
-## 📂 Project Directory Structure
+## 📂 Project structure
 
 ```text
-AI-Video-Assistant/
-├── backend/                        # Pure Python business logic & AI pipelines
-│   ├── __init__.py                 # Backend package exports
-│   ├── audio_processor.py          # YouTube download, format conversion & chunking
-│   ├── transcriber.py              # ASR: Whisper (local) & Sarvam AI (cloud translation)
-│   ├── llm_service.py              # Mistral AI client & model configuration
-│   ├── summarizer.py               # Map-Reduce summarization & structured extraction
-│   ├── rag_engine.py               # ChromaDB vector store, embeddings & RAG Q&A chain
-│   └── pipeline.py                 # Central orchestrator connecting all backend steps
-│
-├── downloaded_videos/              # Dedicated folder for downloaded YouTube / local video files on server
-│   └── .gitkeep                    # Preserves directory structure in git
-│
-├── frontend/                       # Web presentation layer
-│   ├── app.py                      # Modern two-panel Streamlit dashboard
-│   ├── styles.py                   # Custom UI styles, theme variables, and CSS
-│   └── .streamlit/
-│       └── config.toml             # Streamlit server & browser configuration
-│
-├── data/                           # Data storage (git-ignored)
-│   ├── downloads/                  # Processed audio files and WAV chunks
-│   └── vector_db/                  # Persistent ChromaDB sqlite and index files
-│
-├── tests/                          # Validation and integration tests
-│   └── test_pipeline.py            # Unit & NLP pipeline tests
-│
-├── .env                            # Environment variables (API keys, model flags)
-├── .env.example                    # Template environment file
-├── .gitignore                      # Git exclusion rules
-├── app.py                          # Root entry point wrapper for Streamlit
-├── main.py                         # Standalone interactive Terminal CLI
-├── requirements.txt                # Pinned project dependencies
-├── run.bat                         # Windows batch launcher (interactive menu)
-├── run.ps1                         # PowerShell launcher script
-└── README.md                       # Architecture, design decisions & documentation
+AI-video-Assistant/
+├── app.py                  # Streamlit web UI  (streamlit run app.py)
+├── styles.py               # UI styling (CSS)
+├── backend/
+│   ├── pipeline.py         # runs all steps in order
+│   ├── audio_processor.py  # 1. YouTube / file  -> WAV chunks
+│   ├── transcriber.py      # 2. WAV chunks       -> transcript
+│   ├── summarizer.py       # 3. transcript       -> title, summary, insights
+│   ├── rag_engine.py       # 4. transcript       -> Q&A chat
+│   └── llm_service.py      # Mistral LLM client
+├── tests/
+│   └── test_backend.py     # offline unit tests
+├── downloaded_videos/      # downloaded YouTube audio (cache)
+├── data/downloads/         # uploads and converted WAV files
+├── .streamlit/config.toml  # Streamlit settings (500 MB upload limit)
+├── requirements.txt
+└── .env.example            # copy to .env and add API keys
 ```
 
 ---
 
-## ⚡ How It Works (Step-by-Step)
+## 🚀 Run it locally
 
-### 1. Ingestion (`backend/audio_processor.py`)
-- **Server Video Downloads (`downloaded_videos/`)**:
-  - YouTube videos are downloaded directly into the server's `downloaded_videos/` folder with sanitized metadata templates (`%(title)s [%(id)s].mp4`).
-  - If a video already exists in the server folder, it is immediately reused to eliminate redundant downloads and bypass rate limits.
-  - You can also manually place downloaded videos (`.mp4`, `.webm`, `.mkv`, etc.) directly into `downloaded_videos/` via SFTP/curl/browser.
-- **Audio Standardization**: Audio from downloaded videos is converted to **16kHz mono WAV** format via `pydub` / `ffmpeg`, which is the optimal sample rate for Whisper and Sarvam models (with caching to avoid redundant conversions).
-- **Chunking Strategy**: Long recordings are split into 10-minute chunks with a minimum length threshold to prevent out-of-memory errors and handle large files efficiently.
+**Prerequisites:** Python 3.10+, [FFmpeg](https://ffmpeg.org/download.html), and Node.js or Deno (YouTube needs a JavaScript runtime).
 
-### 2. Speech-to-Text Transcription (`backend/transcriber.py`)
-- **English**: Uses local **OpenAI Whisper** models (`tiny`, `base`, or `small`). Fast, private, and runs directly on CPU or GPU without external API costs.
-- **Hinglish / Hindi**: Uses **Sarvam AI (`saaras:v2.5`)** Speech-to-Text Translate API. Audio is divided into 25-second slices and sent via a thread pool to transcribe and translate code-mixed speech into clean English.
-
-### 3. Hierarchical Summarization & Extraction (`backend/summarizer.py`)
-- **Adaptive Summarization**:
-  - *Short transcripts*: Direct single-pass prompt.
-  - *Long transcripts*: **Map-Reduce** pattern — individual transcript sections are summarized in parallel, and then combined into a cohesive executive summary.
-- **Structured Information Extraction**: Uses LangChain Expression Language (LCEL) chains to reliably extract:
-  - **Action Items** (Task, Owner, Deadline)
-  - **Key Decisions**
-  - **Open Questions & Follow-ups**
-- **Title Generation**: Generates an 8-word descriptive meeting title.
-
-### 4. RAG Q&A Engine (`backend/rag_engine.py`)
-- **Text Splitting**: The transcript is chunked using `RecursiveCharacterTextSplitter` (chunk size: 500, overlap: 50).
-- **Dense Embeddings**: Generated locally using `sentence-transformers/all-MiniLM-L6-v2` (384-dimensional dense vectors).
-- **Vector Storage**: Stored in a local **ChromaDB** collection.
-- **Context-Constrained Q&A**: LangChain LCEL chain retrieves the top-4 relevant chunks and strictly conditions Mistral AI to answer using *only* the retrieved meeting context, preventing hallucinations.
-
----
-
-## 🚀 Quick Start Guide
-
-### 1. Prerequisites
-- Python 3.10 or higher
-- [FFmpeg](https://ffmpeg.org/download.html) installed and available in system PATH.
-
-### YouTube bot verification on a VPS
-YouTube may challenge requests from VPS and datacenter IPs. The web UI does not accept cookie uploads; configure cookies directly on the server instead:
-
-1. Export a fresh `youtube.com` cookies file in Netscape format from a private browser session.
-2. Copy it to the VPS, for example `/var/www/netaji/AI-video-Assistant/cookies.txt`, and restrict access with `chmod 600 cookies.txt`.
-3. Install the current yt-dlp extras and a JavaScript runtime for YouTube challenge solving:
-  ```bash
-  sudo apt-get update
-  sudo apt-get install -y python3-venv ffmpeg curl
-  python3 -m venv /var/www/netaji/AI-video-Assistant/.venv --system-site-packages
-  /var/www/netaji/AI-video-Assistant/.venv/bin/python -m pip install -U pip "yt-dlp[default]"
-  curl -fsSL https://deno.land/install.sh | sh
-  ```
-4. Set these variables in the service environment:
-  ```env
-  YOUTUBE_COOKIES_FILE=/var/www/netaji/AI-video-Assistant/cookies.txt
-  YTDLP_JS_RUNTIME=deno
-  YTDLP_REMOTE_COMPONENTS=ejs:github
-  ```
-5. Verify the same Python environment used by systemd has the dependencies:
-  ```bash
-  /var/www/netaji/AI-video-Assistant/.venv/bin/python -m yt_dlp --version
-  /root/.deno/bin/deno --version
-  ```
-6. Point systemd `ExecStart` at `/var/www/netaji/AI-video-Assistant/.venv/bin/python`, add `/root/.deno/bin` to its `PATH`, restart Streamlit, and retry the YouTube URL. `YTDLP_REMOTE_COMPONENTS=ejs:github` is a fallback for environments where the `yt-dlp-ejs` package is not available locally.
-
-The cookies should come from a session that has recently opened YouTube. If YouTube still blocks the VPS IP, use a proxy or a different VPS IP; cookies alone cannot bypass an IP-level block. Keep the cookie file private because it represents an authenticated browser session.
-
-### 2. Configuration
-Create a `.env` file in the project root (or copy from `.env.example`):
-```env
-MISTRAL_API_KEY=your_mistral_api_key_here
-SARVAM_API_KEY=your_sarvam_api_key_here
-MISTRAL_MODEL=open-mistral-nemo
-WHISPER_MODEL=base
-```
-
-### 3. Install Dependencies
 ```bash
 pip install -r requirements.txt
+cp .env.example .env          # then add MISTRAL_API_KEY and SARVAM_API_KEY
+streamlit run app.py
 ```
 
-### 4. Running the Project
+Open http://localhost:8501.
 
-#### Option A: Streamlit Web UI (Recommended)
+**Tests** (no API keys needed):
+
 ```bash
-python -m streamlit run frontend/app.py
+python -m unittest discover tests
 ```
-*(Or simply `streamlit run app.py` from root)*
-
-#### Option B: Terminal CLI Mode
-```bash
-python main.py
-```
-
-#### Option C: One-Click Launchers (Windows)
-- Double-click `run.bat` or run `.\run.ps1` in PowerShell.
 
 ---
 
-## 💡 Interview Talking Points & Design Decisions
+## 🌐 Deploying on a VPS (YouTube without cookies)
 
-| Question | Architectural Rationale |
-| :--- | :--- |
-| **Why separate Backend & Frontend?** | Decouples business logic from presentation. The `backend` package can be imported into a CLI, Streamlit, or converted into FastAPI/Flask REST endpoints with zero modifications to AI code. |
-| **Why Map-Reduce for Summarization?** | LLM context windows can degrade on massive 1-2 hour transcripts. Map-Reduce ensures equal fidelity across all parts of the meeting while staying within token limits. |
-| **Why ChromaDB + Local Embeddings?** | Completely local vector indexing with zero recurring API costs for embedding generation. Persistent on disk in `data/vector_db/`. |
-| **Why Hybrid Whisper + Sarvam?** | Whisper performs exceptionally on standard English, while Sarvam AI specializes in Indic accents, Hindi, and code-mixed Hinglish speech, translating it into English. |
-| **How is CPU utilization managed?** | `torch.set_num_threads()` limits thread saturation on multi-core systems, preventing UI freezes and WebSocket dropouts during transcription. |
-| **How are hallucinations prevented?** | The RAG system prompt explicitly forces the LLM to ground its answers strictly in the retrieved context and declare when an answer is not present. |
+YouTube often answers server IPs with *"Sign in to confirm you're not a bot"*. The app handles this without cookies:
+
+- **Client fallback** - if one YouTube player client is blocked, the download is retried with others (`tv`, `android_vr`, `web_safari`, `web_embedded`).
+- **PO-token provider** - the `bgutil-ytdlp-pot-provider` plugin creates the token YouTube's bot check asks for. It needs a small token server:
+
+```bash
+# 1. System packages, app dependencies, JavaScript runtime
+sudo apt-get install -y python3-venv ffmpeg curl
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+curl -fsSL https://deno.land/install.sh | sh
+
+# 2. PO-token server (bind to 127.0.0.1 only - never expose it publicly)
+curl -fsSL https://get.docker.com | sh
+sudo docker run --name bgutil-provider -d --init --restart unless-stopped \
+  -p 127.0.0.1:4416:4416 brainicism/bgutil-ytdlp-pot-provider:2.0.2
+
+# 3. Run the app (use a systemd service in production)
+.venv/bin/streamlit run app.py --server.port 8501
+```
+
+Keep yt-dlp updated, since YouTube changes often: `.venv/bin/pip install -U "yt-dlp[default]"`.
+
+If YouTube blocks the server's IP completely, set `YOUTUBE_PROXY` in `.env` (for example a free Cloudflare WARP proxy: `socks5://127.0.0.1:40000`), or download the video yourself and use **Upload file**.
+
+---
+
+## 💡 Design decisions (interview talking points)
+
+| Question | Answer |
+|---|---|
+| **Why separate `backend/` from the UI?** | The AI logic has no Streamlit code, so the same backend could be reused by a CLI or a REST API (FastAPI) without changes. |
+| **Why Whisper + Sarvam?** | Whisper is excellent for English and runs locally at no cost. Sarvam is specialized for Indian languages and code-mixed Hinglish, and translates directly to English. |
+| **Why 16 kHz mono WAV?** | It is the input format speech models are trained on; converting once avoids repeated decoding. |
+| **Why chunk the audio?** | Long recordings would use too much memory; Sarvam also accepts only ~30 s per request, so pieces are sent in parallel (31 pieces for a 13-minute video take ~7 s). |
+| **Why Map-Reduce summarization?** | A 1-2 hour transcript doesn't fit well in one prompt. Summarizing parts in parallel and then combining keeps quality even across long meetings. |
+| **Why run LLM calls in parallel?** | Title, summary, action items, decisions, questions and RAG indexing don't depend on each other, so a thread pool runs them together. |
+| **Why RAG instead of sending the whole transcript?** | Only the 4 most relevant chunks go to the LLM - cheaper and faster, and the prompt forces answers grounded in the transcript, which reduces hallucination. |
+| **Why an in-memory vector store per analysis?** | Every analysis gets its own ChromaDB collection, so two users on the server never see each other's data, and nothing piles up on disk. |
+| **Why local embeddings (`all-MiniLM-L6-v2`)?** | Small, fast on CPU and free - no API cost for indexing. |

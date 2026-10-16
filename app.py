@@ -1,24 +1,23 @@
+"""
+Streamlit web UI. Run with:  streamlit run app.py
+
+Left panel: choose a YouTube URL or file, language and Whisper model.
+Right panel: title, summary, action items, decisions, questions, and RAG chat.
+"""
+
 import os
-import sys
 import time
-import torch
+
 import streamlit as st
+from dotenv import load_dotenv
 
-# Prevent PyTorch from overloading CPU cores
-try:
-    torch.set_num_threads(min(4, os.cpu_count() or 1))
-except Exception:
-    pass
+# Read API keys from .env (next to this file) before the backend is imported
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
-# Ensure project root is in sys.path
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
-
-from frontend.styles import CUSTOM_CSS
-from frontend.cookie_route import is_cookie_route_requested, render_cookie_management_route
-from backend.pipeline import VideoAssistantPipeline
+from backend.audio_processor import AUDIO_DIR
+from backend.pipeline import run_pipeline
 from backend.rag_engine import ask_question
+from styles import CUSTOM_CSS
 
 # ─── Page Configuration ─────────────────────────────────────────────────────────
 st.set_page_config(
@@ -30,12 +29,6 @@ st.set_page_config(
 
 # Apply custom UI styling
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
-
-# ─── Hidden Route Gate ────────────────────────────────────────────────────────
-# Check if the secret cookie management route is accessed via URL query parameters
-if is_cookie_route_requested():
-    render_cookie_management_route()
-    st.stop()
 
 # ─── Session State Initialization ──────────────────────────────────────────────
 for key, default in {
@@ -60,6 +53,16 @@ def render_step_indicator(label: str, key: str, icon: str):
         <div class="status-dot {css_class}"></div>
         <span>{icon} {label}</span>
     </div>""", unsafe_allow_html=True)
+
+def render_markdown_card(title: str, body: str, style: str = ""):
+    # Blank lines around the body (and unindented closing tags) let the LLM's
+    # markdown lists render without swallowing the card's closing </div> tags.
+    st.markdown(
+        f'<div class="card" style="{style}">\n'
+        f'<div class="card-title" style="color:#000000;">{title}</div>\n'
+        f'<div class="card-content" style="color:#000000;">\n\n{body}\n\n</div>\n</div>',
+        unsafe_allow_html=True,
+    )
 
 # ─── Layout: Left Control Panel & Right Results Panel ──────────────────────────
 left_col, right_col = st.columns([1, 3], gap="large")
@@ -100,10 +103,8 @@ with left_col:
                 label_visibility="collapsed",
             )
             if uploaded_file is not None:
-                save_dir = os.path.join(PROJECT_ROOT, "data", "downloads")
-                os.makedirs(save_dir, exist_ok=True)
                 safe_name = os.path.basename(uploaded_file.name)
-                save_path = os.path.join(save_dir, safe_name)
+                save_path = os.path.join(AUDIO_DIR, safe_name)
                 with open(save_path, "wb") as file_handle:
                     file_handle.write(uploaded_file.getbuffer())
                 source = save_path
@@ -172,20 +173,26 @@ with right_col:
 
             progress_placeholder = st.empty()
 
+            engine_name = "Sarvam AI" if language == "hinglish" else f"Whisper ({selected_whisper_model})"
+            step_messages = {
+                "audio": "🔊 Downloading / preparing audio...",
+                "transcript": f"📝 Transcribing speech with {engine_name}...",
+                "title": "🧠 Generating summary, insights & RAG index...",
+            }
+
             def ui_callback(step_key: str, status: str):
                 st.session_state.pipeline_steps[step_key] = status
+                # Show which step is running right now
+                if status == "active" and step_key in step_messages:
+                    progress_placeholder.info(f"⚙️ {step_messages[step_key]}")
 
             try:
-                progress_placeholder.info("⚙️ Step 1/3: Ingesting and preparing audio...")
-                pipeline = VideoAssistantPipeline(
+                result = run_pipeline(
+                    source,
                     language=language,
                     whisper_model=selected_whisper_model,
+                    on_step=ui_callback,
                 )
-
-                engine_name = "Sarvam AI" if language == "hinglish" else f"Whisper ({selected_whisper_model})"
-                progress_placeholder.info(f"⚙️ Running pipeline with {engine_name}...")
-
-                result = pipeline.run(source.strip(), progress_callback=ui_callback)
 
                 st.session_state.result = result
                 st.session_state.pipeline_done = True
@@ -216,11 +223,7 @@ with right_col:
         # Summary & Transcript
         col1, col2 = st.columns([3, 2], gap="medium")
         with col1:
-            st.markdown(f"""
-            <div class="card">
-                <div class="card-title" style="color:#000000;">📋 Executive Summary</div>
-                <div class="card-content" style="color:#000000;">{r['summary']}</div>
-            </div>""", unsafe_allow_html=True)
+            render_markdown_card("📋 Executive Summary", r["summary"])
 
         with col2:
             with st.expander("📝 Full Transcript", expanded=False):
@@ -229,25 +232,13 @@ with right_col:
         # Action Items, Key Decisions & Open Questions
         c1, c2, c3 = st.columns(3, gap="medium")
         with c1:
-            st.markdown(f"""
-            <div class="card" style="border-top: 3px solid var(--accent);">
-                <div class="card-title" style="color:#000000;">✅ Action Items</div>
-                <div class="card-content" style="color:#000000;">{r['action_items']}</div>
-            </div>""", unsafe_allow_html=True)
+            render_markdown_card("✅ Action Items", r["action_items"], "border-top: 3px solid var(--accent);")
 
         with c2:
-            st.markdown(f"""
-            <div class="card" style="border-top: 3px solid var(--accent-2);">
-                <div class="card-title" style="color:#000000;">🔑 Key Decisions</div>
-                <div class="card-content" style="color:#000000;">{r['key_decisions']}</div>
-            </div>""", unsafe_allow_html=True)
+            render_markdown_card("🔑 Key Decisions", r["key_decisions"], "border-top: 3px solid var(--accent-2);")
 
         with c3:
-            st.markdown(f"""
-            <div class="card" style="border-top: 3px solid var(--border-strong);">
-                <div class="card-title" style="color:#000000;">❓ Open Questions</div>
-                <div class="card-content" style="color:#000000;">{r['open_questions']}</div>
-            </div>""", unsafe_allow_html=True)
+            render_markdown_card("❓ Open Questions", r["open_questions"], "border-top: 3px solid var(--border-strong);")
 
         st.markdown("---")
 

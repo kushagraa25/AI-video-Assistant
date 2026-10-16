@@ -1,34 +1,19 @@
-# Secrets & environment
+# Secrets
 .env
-cookies.txt
-cookie.txt
-coociee.txt
 
-# Virtual Environment
+# Virtual environment
 venv/
 .venv/
-env/
 
-# Python bytecode & cache
+# Python cache
 __pycache__/
 *.py[cod]
-*$py.class
-.pytest_cache/
 
-# Local data & temporary audio downloads
-data/downloads/*
-!data/downloads/.gitkeep
-data/vector_db/*
-!data/vector_db/.gitkeep
-
-# Downloaded videos on server
+# Downloaded and converted media (folders are kept via .gitkeep)
 downloaded_videos/*
 !downloaded_videos/.gitkeep
+data/downloads/*
+!data/downloads/.gitkeep
 
-# Legacy temporary folders
-downloades/
-downloads/
-vector_db/
-
-# Streamlit local session data
+# Streamlit secrets
 .streamlit/secrets.toml
